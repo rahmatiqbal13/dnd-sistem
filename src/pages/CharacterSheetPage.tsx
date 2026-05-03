@@ -55,9 +55,7 @@ const SPELL_LEVEL_LABEL: Record<number, string> = {
   5: 'Level 5', 6: 'Level 6', 7: 'Level 7', 8: 'Level 8', 9: 'Level 9',
 }
 
-const ALL_SPELL_CLASSES = [...new Set(
-  COMPENDIUM_DATA.filter(e => e.category === 'spell').flatMap(e => e.tags)
-)].sort()
+const ALL_SPELL_CLASSES = ['Bard', 'Cleric', 'Druid', 'Paladin', 'Ranger', 'Sorcerer', 'Warlock', 'Wizard']
 
 const PICKER_BATCH = 30
 
@@ -128,12 +126,12 @@ function SpellPickerDialog({ open, onClose, characterClass, knownIds, onAdd }: S
         {/* Class filter */}
         <div className="px-4 pt-2 shrink-0">
           <p className="text-[10px] font-semibold text-forest-light dark:text-parchment/40 uppercase tracking-wider mb-1">Kelas</p>
-          <div className="flex gap-1 overflow-x-auto pb-1 scrollbar-hide">
+          <div className="flex flex-wrap gap-1.5">
             {['all', ...ALL_SPELL_CLASSES].map(cls => (
               <button
                 key={cls}
                 onClick={() => { setClassFilter(cls); setVisibleCount(PICKER_BATCH) }}
-                className={`whitespace-nowrap px-2 py-0.5 rounded-full text-[11px] font-medium border transition-all shrink-0 ${
+                className={`px-2 py-0.5 rounded-full text-[11px] font-medium border transition-all ${
                   classFilter === cls
                     ? 'bg-forest-deep text-parchment border-forest-deep'
                     : 'border-forest-deep/20 dark:border-forest-mid/25 text-forest-deep dark:text-parchment/70'
@@ -148,12 +146,12 @@ function SpellPickerDialog({ open, onClose, characterClass, knownIds, onAdd }: S
         {/* Level filter */}
         <div className="px-4 pt-1 pb-2 border-b border-forest-deep/10 dark:border-forest-mid/15 shrink-0">
           <p className="text-[10px] font-semibold text-forest-light dark:text-parchment/40 uppercase tracking-wider mb-1">Level</p>
-          <div className="flex gap-1 overflow-x-auto pb-1 scrollbar-hide">
+          <div className="flex flex-wrap gap-1.5">
             {['all', '0', '1', '2', '3', '4', '5', '6', '7', '8', '9'].map(lv => (
               <button
                 key={lv}
                 onClick={() => { setLevelFilter(lv); setVisibleCount(PICKER_BATCH) }}
-                className={`whitespace-nowrap px-2 py-0.5 rounded-full text-[11px] font-medium border transition-all shrink-0 ${
+                className={`px-2 py-0.5 rounded-full text-[11px] font-medium border transition-all ${
                   levelFilter === lv
                     ? 'bg-forest-deep text-parchment border-forest-deep'
                     : 'border-forest-deep/20 dark:border-forest-mid/25 text-forest-deep dark:text-parchment/70'

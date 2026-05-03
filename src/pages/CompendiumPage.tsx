@@ -16,10 +16,8 @@ function parseSpellLevel(subtitle: string): number {
   return m ? parseInt(m[1]) : -1
 }
 
-// Derived once at module level from compendium data
-const SPELL_CLASSES = [...new Set(
-  COMPENDIUM_DATA.filter(e => e.category === 'spell').flatMap(e => e.tags)
-)].sort()
+// Only the 8 standard D&D 5e spellcasting classes
+const SPELL_CLASSES = ['Bard', 'Cleric', 'Druid', 'Paladin', 'Ranger', 'Sorcerer', 'Warlock', 'Wizard']
 
 const MONSTER_TYPES = [...new Set(
   COMPENDIUM_DATA.filter(e => e.category === 'monster')
@@ -64,11 +62,11 @@ function SubFilterBar({
   allLabel?: string
 }) {
   return (
-    <div className="flex gap-1 overflow-x-auto pb-1 scrollbar-hide">
+    <div className="flex flex-wrap gap-1.5">
       <button
         onClick={() => onChange('all')}
         className={cn(
-          'whitespace-nowrap px-2.5 py-1 rounded-full text-[11px] font-medium border transition-all shrink-0',
+          'px-2.5 py-1 rounded-full text-[11px] font-medium border transition-all',
           value === 'all'
             ? 'bg-forest-deep text-parchment border-forest-deep'
             : 'border-forest-deep/20 dark:border-forest-mid/25 text-forest-deep dark:text-parchment/70 hover:border-forest-mid/40'
@@ -81,7 +79,7 @@ function SubFilterBar({
           key={opt}
           onClick={() => onChange(opt)}
           className={cn(
-            'whitespace-nowrap px-2.5 py-1 rounded-full text-[11px] font-medium border transition-all shrink-0',
+            'px-2.5 py-1 rounded-full text-[11px] font-medium border transition-all',
             value === opt
               ? 'bg-forest-deep text-parchment border-forest-deep'
               : 'border-forest-deep/20 dark:border-forest-mid/25 text-forest-deep dark:text-parchment/70 hover:border-forest-mid/40'
