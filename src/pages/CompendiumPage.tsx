@@ -8,7 +8,32 @@ import { Card, CardContent } from '@/components/ui/card'
 import { cn } from '@/lib/utils'
 import type { CompendiumCategory, CompendiumEntry } from '@/types'
 
-const LIST_BATCH = 100
+const LIST_BATCH = 50
+
+function parseSpellLevel(subtitle: string): number {
+  if (/cantrip/i.test(subtitle)) return 0
+  const m = subtitle.match(/Level\s+(\d+)/i)
+  return m ? parseInt(m[1]) : -1
+}
+
+// Derived once at module level from compendium data
+const SPELL_CLASSES = [...new Set(
+  COMPENDIUM_DATA.filter(e => e.category === 'spell').flatMap(e => e.tags)
+)].sort()
+
+const MONSTER_TYPES = [...new Set(
+  COMPENDIUM_DATA.filter(e => e.category === 'monster')
+    .flatMap(e => e.tags.filter(t => !t.startsWith('CR')))
+)].sort()
+
+const EQUIP_CATEGORIES = [...new Set(
+  COMPENDIUM_DATA.filter(e => e.category === 'equipment').map(e => e.subtitle)
+)].sort()
+
+const SPELL_LEVEL_LABELS: Record<string, string> = {
+  '0': 'Cantrip', '1': 'Lv 1', '2': 'Lv 2', '3': 'Lv 3', '4': 'Lv 4',
+  '5': 'Lv 5', '6': 'Lv 6', '7': 'Lv 7', '8': 'Lv 8', '9': 'Lv 9',
+}
 
 const CATEGORIES: { value: CompendiumCategory | 'all'; label: string; icon: React.ReactNode }[] = [
   { value: 'all', label: 'Semua', icon: null },
@@ -27,38 +52,101 @@ const CATEGORY_COLORS: Record<CompendiumCategory, string> = {
   equipment: 'text-blue-600 bg-blue-50 dark:text-blue-300 dark:bg-blue-900/20',
 }
 
+function SubFilterBar({
+  options,
+  value,
+  onChange,
+  allLabel = 'Semua',
+}: {
+  options: string[]
+  value: string
+  onChange: (v: string) => void
+  allLabel?: string
+}) {
+  return (
+    <div className="flex gap-1 overflow-x-auto pb-1 scrollbar-hide">
+      <button
+        onClick={() => onChange('all')}
+        className={cn(
+          'whitespace-nowrap px-2.5 py-1 rounded-full text-[11px] font-medium border transition-all shrink-0',
+          value === 'all'
+            ? 'bg-forest-deep text-parchment border-forest-deep'
+            : 'border-forest-deep/20 dark:border-forest-mid/25 text-forest-deep dark:text-parchment/70 hover:border-forest-mid/40'
+        )}
+      >
+        {allLabel}
+      </button>
+      {options.map(opt => (
+        <button
+          key={opt}
+          onClick={() => onChange(opt)}
+          className={cn(
+            'whitespace-nowrap px-2.5 py-1 rounded-full text-[11px] font-medium border transition-all shrink-0',
+            value === opt
+              ? 'bg-forest-deep text-parchment border-forest-deep'
+              : 'border-forest-deep/20 dark:border-forest-mid/25 text-forest-deep dark:text-parchment/70 hover:border-forest-mid/40'
+          )}
+        >
+          {opt}
+        </button>
+      ))}
+    </div>
+  )
+}
+
 export function CompendiumPage() {
   const [search, setSearch] = useState('')
   const [category, setCategory] = useState<CompendiumCategory | 'all'>('all')
   const [selected, setSelected] = useState<CompendiumEntry | null>(null)
   const [visibleCount, setVisibleCount] = useState(LIST_BATCH)
 
+  const [spellClass, setSpellClass] = useState('all')
+  const [spellLevel, setSpellLevel] = useState('all')
+  const [monsterType, setMonsterType] = useState('all')
+  const [equipCat, setEquipCat] = useState('all')
+
   const deferredSearch = useDeferredValue(search)
+
+  useEffect(() => {
+    setSpellClass('all')
+    setSpellLevel('all')
+    setMonsterType('all')
+    setEquipCat('all')
+  }, [category])
 
   const filtered = useMemo(() => {
     return COMPENDIUM_DATA.filter((entry) => {
       const matchCat = category === 'all' || entry.category === category
+      if (!matchCat) return false
+
+      if (category === 'spell') {
+        if (spellClass !== 'all' && !entry.tags.includes(spellClass)) return false
+        if (spellLevel !== 'all' && String(parseSpellLevel(entry.subtitle)) !== spellLevel) return false
+      }
+      if (category === 'monster' && monsterType !== 'all') {
+        const types = entry.tags.filter(t => !t.startsWith('CR'))
+        if (!types.includes(monsterType)) return false
+      }
+      if (category === 'equipment' && equipCat !== 'all' && entry.subtitle !== equipCat) return false
+
       const q = deferredSearch.toLowerCase().trim()
-      const subtitle = String(entry.subtitle ?? '')
-      const tags = Array.isArray(entry.tags) ? entry.tags : []
-      const name = String(entry.name ?? '')
-      const matchSearch =
-        !q ||
-        name.toLowerCase().includes(q) ||
-        subtitle.toLowerCase().includes(q) ||
+      if (!q) return true
+      const name = String(entry.name ?? '').toLowerCase()
+      const subtitle = String(entry.subtitle ?? '').toLowerCase()
+      const tags = entry.tags ?? []
+      return (
+        name.includes(q) ||
+        subtitle.includes(q) ||
         tags.some((t) => String(t).toLowerCase().includes(q))
-      return matchCat && matchSearch
+      )
     })
-  }, [deferredSearch, category])
+  }, [deferredSearch, category, spellClass, spellLevel, monsterType, equipCat])
 
   useEffect(() => {
     setVisibleCount(LIST_BATCH)
-  }, [deferredSearch, category])
+  }, [deferredSearch, category, spellClass, spellLevel, monsterType, equipCat])
 
-  const visible = useMemo(
-    () => filtered.slice(0, visibleCount),
-    [filtered, visibleCount]
-  )
+  const visible = useMemo(() => filtered.slice(0, visibleCount), [filtered, visibleCount])
   const hasMore = filtered.length > visible.length
 
   if (selected) {
@@ -154,8 +242,8 @@ export function CompendiumPage() {
         )}
       </div>
 
-      {/* Category Filter */}
-      <div className="flex gap-1.5 overflow-x-auto pb-2 mb-4 scrollbar-hide">
+      {/* Main Category Filter */}
+      <div className="flex gap-1.5 overflow-x-auto pb-2 mb-2 scrollbar-hide">
         {CATEGORIES.map(({ value, label, icon }) => (
           <button
             key={value}
@@ -173,11 +261,44 @@ export function CompendiumPage() {
         ))}
       </div>
 
-      {/* Results */}
+      {/* Sub-filters for Spell */}
+      {category === 'spell' && (
+        <div className="space-y-1.5 mb-3 p-2.5 rounded-lg bg-purple-50/50 dark:bg-purple-900/10 border border-purple-200/40 dark:border-purple-800/20">
+          <p className="text-[10px] font-semibold text-purple-700 dark:text-purple-300 uppercase tracking-wider">Filter Kelas</p>
+          <SubFilterBar options={SPELL_CLASSES} value={spellClass} onChange={setSpellClass} />
+          <p className="text-[10px] font-semibold text-purple-700 dark:text-purple-300 uppercase tracking-wider mt-1.5">Filter Level</p>
+          <SubFilterBar
+            options={Object.keys(SPELL_LEVEL_LABELS)}
+            value={spellLevel}
+            onChange={setSpellLevel}
+            allLabel="Semua Level"
+          />
+        </div>
+      )}
+
+      {/* Sub-filters for Monster */}
+      {category === 'monster' && (
+        <div className="space-y-1.5 mb-3 p-2.5 rounded-lg bg-red-50/50 dark:bg-red-900/10 border border-red-200/40 dark:border-red-800/20">
+          <p className="text-[10px] font-semibold text-crimson dark:text-red-300 uppercase tracking-wider">Tipe Monster</p>
+          <SubFilterBar options={MONSTER_TYPES} value={monsterType} onChange={setMonsterType} />
+        </div>
+      )}
+
+      {/* Sub-filters for Equipment */}
+      {category === 'equipment' && (
+        <div className="space-y-1.5 mb-3 p-2.5 rounded-lg bg-blue-50/50 dark:bg-blue-900/10 border border-blue-200/40 dark:border-blue-800/20">
+          <p className="text-[10px] font-semibold text-blue-700 dark:text-blue-300 uppercase tracking-wider">Jenis Equipment</p>
+          <SubFilterBar options={EQUIP_CATEGORIES} value={equipCat} onChange={setEquipCat} />
+        </div>
+      )}
+
+      {/* Results Count */}
       <p className="text-xs text-forest-light dark:text-parchment/40 mb-2">
         {filtered.length} hasil
         {hasMore ? ` · menampilkan ${visible.length}` : ''}
       </p>
+
+      {/* List */}
       <div className="space-y-2">
         {visible.map((entry) => (
           <button
@@ -213,6 +334,7 @@ export function CompendiumPage() {
             </Card>
           </button>
         ))}
+
         {filtered.length === 0 && (
           <div className="text-center py-12">
             <p className="text-4xl mb-3">📚</p>
@@ -221,6 +343,7 @@ export function CompendiumPage() {
             </p>
           </div>
         )}
+
         {hasMore && (
           <Button
             type="button"
