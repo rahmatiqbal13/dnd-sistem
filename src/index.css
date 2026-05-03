@@ -1,0 +1,82 @@
+@import "tailwindcss";
+
+@theme {
+  /* Forest Green + Gold color palette */
+  --color-forest-deep: #1a4a2a;
+  --color-forest-mid: #266642;
+  --color-forest-light: #4aaa68;
+  --color-gold: #d4980a;
+  --color-gold-light: #f2c438;
+  --color-crimson: #a02424;
+  --color-parchment: #fdf6e3;
+  --color-midnight: #131d14;
+
+  /* Fonts */
+  --font-cinzel: 'Cinzel', Georgia, serif;
+  --font-crimson: 'Crimson Pro', Georgia, serif;
+}
+
+@layer base {
+  *, *::before, *::after {
+    box-sizing: border-box;
+  }
+
+  html {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+
+  body {
+    margin: 0;
+    padding: 0;
+    font-family: 'Crimson Pro', Georgia, serif;
+    background-color: var(--color-parchment);
+    color: var(--color-forest-deep);
+    min-height: 100vh;
+  }
+
+  .dark body {
+    background-color: var(--color-midnight);
+    color: var(--color-parchment);
+  }
+
+  #root {
+    min-height: 100vh;
+  }
+}
+
+@layer utilities {
+  .font-cinzel {
+    font-family: 'Cinzel', Georgia, serif;
+  }
+
+  .font-crimson {
+    font-family: 'Crimson Pro', Georgia, serif;
+  }
+
+  .scrollbar-hide {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Dice roll animation */
+  @keyframes dice-roll {
+    0%, 100% { transform: rotate(0deg) scale(1); }
+    25% { transform: rotate(-15deg) scale(0.95); }
+    75% { transform: rotate(15deg) scale(1.05); }
+  }
+
+  .animate-dice {
+    animation: dice-roll 0.15s ease-in-out infinite;
+  }
+
+  /* Glow effect for active turn */
+  .glow-gold {
+    box-shadow: 0 0 0 2px #f2c438, 0 0 12px rgba(242, 196, 56, 0.35);
+  }
+}

@@ -1,0 +1,346 @@
+import type { CompendiumEntry } from '@/types'
+
+export const COMPENDIUM_DATA: CompendiumEntry[] = [
+  // ── SPELLS ────────────────────────────────────────────────────────────────
+  {
+    id: 'sp-fireball',
+    name: 'Fireball',
+    category: 'spell',
+    subtitle: 'Level 3 Evocation',
+    tags: ['Damage', 'AoE', 'Fire', 'Wizard', 'Sorcerer'],
+    content: {
+      'Casting Time': '1 Action',
+      Range: '150 feet',
+      Components: 'V, S, M (a ball of bat guano and sulfur)',
+      Duration: 'Instantaneous',
+      Description:
+        'A bright streak flashes from your pointing finger to a point you choose within range, then blossoms with a low roar into an explosion of flame. Each creature in a 20-foot-radius sphere centered on that point must make a Dexterity saving throw. On a failed save, a creature takes 8d6 fire damage, or half as much on a successful save.',
+      'At Higher Levels': 'When cast with a 4th+ spell slot, damage increases by 1d6 per slot level above 3rd.',
+    },
+  },
+  {
+    id: 'sp-magic-missile',
+    name: 'Magic Missile',
+    category: 'spell',
+    subtitle: 'Level 1 Evocation',
+    tags: ['Damage', 'Force', 'Wizard', 'Sorcerer'],
+    content: {
+      'Casting Time': '1 Action',
+      Range: '120 feet',
+      Components: 'V, S',
+      Duration: 'Instantaneous',
+      Description:
+        'You create three glowing darts of magical force. Each dart hits a creature of your choice that you can see within range. A dart deals 1d4 + 1 force damage to its target. The darts all strike simultaneously, and you can direct them to hit one creature or several.',
+      'At Higher Levels': 'When cast with a 2nd+ spell slot, the spell creates one more dart for each slot level above 1st.',
+    },
+  },
+  {
+    id: 'sp-cure-wounds',
+    name: 'Cure Wounds',
+    category: 'spell',
+    subtitle: 'Level 1 Evocation',
+    tags: ['Healing', 'Cleric', 'Druid', 'Paladin', 'Ranger', 'Bard'],
+    content: {
+      'Casting Time': '1 Action',
+      Range: 'Touch',
+      Components: 'V, S',
+      Duration: 'Instantaneous',
+      Description:
+        'A creature you touch regains a number of hit points equal to 1d8 + your spellcasting ability modifier. This spell has no effect on undead or constructs.',
+      'At Higher Levels': 'When cast with a 2nd+ spell slot, healing increases by 1d8 per slot level above 1st.',
+    },
+  },
+  {
+    id: 'sp-shield',
+    name: 'Shield',
+    category: 'spell',
+    subtitle: 'Level 1 Abjuration',
+    tags: ['Reaction', 'Protection', 'Wizard', 'Sorcerer'],
+    content: {
+      'Casting Time': '1 Reaction (when hit by an attack)',
+      Range: 'Self',
+      Components: 'V, S',
+      Duration: '1 round',
+      Description:
+        'An invisible barrier of magical force appears and protects you. Until the start of your next turn, you have a +5 bonus to AC, including against the triggering attack, and you take no damage from magic missile.',
+    },
+  },
+  {
+    id: 'sp-sleep',
+    name: 'Sleep',
+    category: 'spell',
+    subtitle: 'Level 1 Enchantment',
+    tags: ['Control', 'Wizard', 'Sorcerer', 'Bard'],
+    content: {
+      'Casting Time': '1 Action',
+      Range: '90 feet',
+      Components: 'V, S, M (a pinch of fine sand)',
+      Duration: '1 minute',
+      Description:
+        'This spell sends creatures into a magical slumber. Roll 5d8; the total is how many hit points of creatures this spell can affect. Creatures within 20 feet of a point you choose within range are affected in ascending order of their current hit points (lowest first).',
+      'At Higher Levels': 'When cast with a 2nd+ spell slot, roll an additional 2d8 per slot level above 1st.',
+    },
+  },
+  {
+    id: 'sp-hold-person',
+    name: 'Hold Person',
+    category: 'spell',
+    subtitle: 'Level 2 Enchantment',
+    tags: ['Control', 'Concentration', 'Cleric', 'Druid', 'Wizard', 'Sorcerer', 'Bard', 'Warlock'],
+    content: {
+      'Casting Time': '1 Action',
+      Range: '60 feet',
+      Components: 'V, S, M (a small, straight piece of iron)',
+      Duration: 'Concentration, up to 1 minute',
+      Description:
+        'Choose a humanoid that you can see within range. The target must succeed on a Wisdom saving throw or be paralyzed for the duration. At the end of each of its turns, the target can make another Wisdom saving throw. On a success, the spell ends on the target.',
+      'At Higher Levels': 'When cast with a 3rd+ spell slot, you can target one additional humanoid per slot level above 2nd.',
+    },
+  },
+  {
+    id: 'sp-healing-word',
+    name: 'Healing Word',
+    category: 'spell',
+    subtitle: 'Level 1 Evocation',
+    tags: ['Healing', 'Bonus Action', 'Cleric', 'Druid', 'Bard'],
+    content: {
+      'Casting Time': '1 Bonus Action',
+      Range: '60 feet',
+      Components: 'V',
+      Duration: 'Instantaneous',
+      Description:
+        'A creature of your choice that you can see within range regains hit points equal to 1d4 + your spellcasting ability modifier.',
+      'At Higher Levels': 'When cast with a 2nd+ spell slot, healing increases by 1d4 per slot level above 1st.',
+    },
+  },
+  {
+    id: 'sp-bless',
+    name: 'Bless',
+    category: 'spell',
+    subtitle: 'Level 1 Enchantment',
+    tags: ['Buff', 'Concentration', 'Cleric', 'Paladin'],
+    content: {
+      'Casting Time': '1 Action',
+      Range: '30 feet',
+      Components: 'V, S, M (a sprinkling of holy water)',
+      Duration: 'Concentration, up to 1 minute',
+      Description:
+        'You bless up to three creatures of your choice within range. Whenever a target makes an attack roll or a saving throw before the spell ends, the target can roll a d4 and add the number rolled to the attack roll or saving throw.',
+    },
+  },
+
+  // ── MONSTERS ──────────────────────────────────────────────────────────────
+  {
+    id: 'mn-goblin',
+    name: 'Goblin',
+    category: 'monster',
+    subtitle: 'Small Humanoid, CR 1/4',
+    tags: ['Humanoid', 'Common', 'CR 1/4'],
+    content: {
+      'Armor Class': '15 (leather armor, shield)',
+      'Hit Points': '7 (2d6)',
+      Speed: '30 ft.',
+      'STR / DEX / CON': '8 / 14 / 10',
+      'INT / WIS / CHA': '10 / 8 / 8',
+      Skills: 'Stealth +6',
+      Senses: 'Darkvision 60 ft., Passive Perception 9',
+      'Nimble Escape': 'The goblin can take the Disengage or Hide action as a bonus action on each of its turns.',
+      'Scimitar': 'Melee Weapon Attack: +4 to hit, reach 5 ft., one target. Hit: 5 (1d6 + 2) slashing damage.',
+      'Shortbow': 'Ranged Weapon Attack: +4 to hit, range 80/320 ft., one target. Hit: 5 (1d6 + 2) piercing damage.',
+    },
+  },
+  {
+    id: 'mn-orc',
+    name: 'Orc',
+    category: 'monster',
+    subtitle: 'Medium Humanoid, CR 1/2',
+    tags: ['Humanoid', 'Common', 'CR 1/2'],
+    content: {
+      'Armor Class': '13 (hide armor)',
+      'Hit Points': '15 (2d8 + 6)',
+      Speed: '30 ft.',
+      'STR / DEX / CON': '16 / 12 / 16',
+      'INT / WIS / CHA': '7 / 11 / 10',
+      Skills: 'Intimidation +2',
+      Senses: 'Darkvision 60 ft., Passive Perception 10',
+      'Aggressive': 'As a bonus action, the orc can move up to its speed toward a hostile creature it can see.',
+      'Greataxe': 'Melee Weapon Attack: +5 to hit, reach 5 ft., one target. Hit: 9 (1d12 + 3) slashing damage.',
+      'Javelin': 'Melee or Ranged Weapon Attack: +5 to hit, reach 5 ft. or range 30/120 ft., one target. Hit: 6 (1d6 + 3) piercing damage.',
+    },
+  },
+  {
+    id: 'mn-skeleton',
+    name: 'Skeleton',
+    category: 'monster',
+    subtitle: 'Medium Undead, CR 1/4',
+    tags: ['Undead', 'Common', 'CR 1/4'],
+    content: {
+      'Armor Class': '13 (armor scraps)',
+      'Hit Points': '13 (2d8 + 4)',
+      Speed: '30 ft.',
+      'STR / DEX / CON': '10 / 14 / 15',
+      'INT / WIS / CHA': '6 / 8 / 5',
+      'Damage Vulnerabilities': 'Bludgeoning',
+      'Damage Immunities': 'Poison',
+      'Condition Immunities': 'Exhaustion, Poisoned',
+      Senses: 'Darkvision 60 ft., Passive Perception 9',
+      'Shortsword': 'Melee Weapon Attack: +4 to hit, reach 5 ft., one target. Hit: 5 (1d6 + 2) piercing damage.',
+      'Shortbow': 'Ranged Weapon Attack: +4 to hit, range 80/320 ft., one target. Hit: 5 (1d6 + 2) piercing damage.',
+    },
+  },
+  {
+    id: 'mn-zombie',
+    name: 'Zombie',
+    category: 'monster',
+    subtitle: 'Medium Undead, CR 1/4',
+    tags: ['Undead', 'Common', 'CR 1/4'],
+    content: {
+      'Armor Class': '8',
+      'Hit Points': '22 (3d8 + 9)',
+      Speed: '20 ft.',
+      'STR / DEX / CON': '13 / 6 / 16',
+      'INT / WIS / CHA': '3 / 6 / 5',
+      'Saving Throws': 'Wis +0',
+      'Damage Immunities': 'Poison',
+      'Condition Immunities': 'Poisoned',
+      Senses: 'Darkvision 60 ft., Passive Perception 8',
+      'Undead Fortitude': 'If damage reduces the zombie to 0 hit points, it must make a Constitution saving throw with a DC of 5 + the damage taken, unless the damage is radiant or from a critical hit. On a success, the zombie drops to 1 hit point instead.',
+      'Slam': 'Melee Weapon Attack: +3 to hit, reach 5 ft., one target. Hit: 4 (1d6 + 1) bludgeoning damage.',
+    },
+  },
+  {
+    id: 'mn-dragon-wyrmling',
+    name: 'Red Dragon Wyrmling',
+    category: 'monster',
+    subtitle: 'Medium Dragon, CR 4',
+    tags: ['Dragon', 'Fire', 'CR 4'],
+    content: {
+      'Armor Class': '17 (natural armor)',
+      'Hit Points': '75 (10d8 + 30)',
+      Speed: '30 ft., climb 30 ft., fly 60 ft.',
+      'STR / DEX / CON': '19 / 10 / 17',
+      'INT / WIS / CHA': '12 / 11 / 15',
+      'Saving Throws': 'Dex +2, Con +5, Wis +2, Cha +4',
+      Skills: 'Perception +4, Stealth +2',
+      'Damage Immunities': 'Fire',
+      Senses: 'Blindsight 10 ft., Darkvision 60 ft., Passive Perception 14',
+      'Bite': 'Melee Weapon Attack: +6 to hit, reach 5 ft., one target. Hit: 9 (1d10 + 4) piercing damage plus 3 (1d6) fire damage.',
+      'Fire Breath (Recharge 5–6)': 'The dragon exhales fire in a 15-foot cone. Each creature in that area must make a DC 13 Dexterity saving throw, taking 24 (7d6) fire damage on a failed save, or half as much on a successful one.',
+    },
+  },
+
+  // ── CONDITIONS ────────────────────────────────────────────────────────────
+  {
+    id: 'cond-poisoned',
+    name: 'Poisoned',
+    category: 'condition',
+    subtitle: 'Status Condition',
+    tags: ['Condition', 'Debuff'],
+    content: {
+      Effect: 'A poisoned creature has disadvantage on attack rolls and ability checks.',
+    },
+  },
+  {
+    id: 'cond-stunned',
+    name: 'Stunned',
+    category: 'condition',
+    subtitle: 'Status Condition',
+    tags: ['Condition', 'Debuff'],
+    content: {
+      Effect:
+        'A stunned creature is incapacitated, can\'t move, and can speak only falteringly. The creature automatically fails Strength and Dexterity saving throws. Attack rolls against the creature have advantage.',
+    },
+  },
+  {
+    id: 'cond-prone',
+    name: 'Prone',
+    category: 'condition',
+    subtitle: 'Status Condition',
+    tags: ['Condition', 'Debuff'],
+    content: {
+      Effect:
+        'A prone creature\'s only movement option is to crawl, unless it stands up and thereby ends the condition. The creature has disadvantage on attack rolls. An attack roll against the creature has advantage if the attacker is within 5 feet of the creature. Otherwise, the attack roll has disadvantage.',
+    },
+  },
+  {
+    id: 'cond-paralyzed',
+    name: 'Paralyzed',
+    category: 'condition',
+    subtitle: 'Status Condition',
+    tags: ['Condition', 'Debuff'],
+    content: {
+      Effect:
+        'A paralyzed creature is incapacitated and can\'t move or speak. The creature automatically fails Strength and Dexterity saving throws. Attack rolls against the creature have advantage. Any attack that hits the creature is a critical hit if the attacker is within 5 feet of the creature.',
+    },
+  },
+
+  // ── CLASSES ───────────────────────────────────────────────────────────────
+  {
+    id: 'cls-fighter',
+    name: 'Fighter',
+    category: 'class',
+    subtitle: 'Martial Archetype',
+    tags: ['Martial', 'Beginner Friendly', 'Versatile'],
+    content: {
+      'Hit Die': 'd10',
+      'Primary Ability': 'Strength or Dexterity',
+      'Saving Throw Proficiencies': 'Strength, Constitution',
+      'Armor Proficiencies': 'All armor, shields',
+      'Weapon Proficiencies': 'Simple weapons, martial weapons',
+      Description:
+        'Fighters share an unparalleled mastery with weapons and armor, and a thorough knowledge of the skills of combat. They are well acquainted with death, both meting it out and staring it defiantly in the face.',
+      'Key Features': 'Fighting Style (Lv 1), Second Wind (Lv 1), Action Surge (Lv 2), Martial Archetype (Lv 3), Extra Attack (Lv 5)',
+    },
+  },
+  {
+    id: 'cls-wizard',
+    name: 'Wizard',
+    category: 'class',
+    subtitle: 'Arcane Spellcaster',
+    tags: ['Caster', 'Arcane', 'Versatile'],
+    content: {
+      'Hit Die': 'd6',
+      'Primary Ability': 'Intelligence',
+      'Saving Throw Proficiencies': 'Intelligence, Wisdom',
+      'Armor Proficiencies': 'None',
+      'Weapon Proficiencies': 'Daggers, darts, slings, quarterstaffs, light crossbows',
+      Description:
+        'Wizards are supreme magic-users, defined and united as a class by the spells they cast. Drawing on the subtle weave of magic that permeates the cosmos, wizards cast spells of explosive fire, arcing lightning, subtle deception, and brute-force mind control.',
+      'Key Features': 'Spellcasting (Lv 1), Arcane Recovery (Lv 1), Arcane Tradition (Lv 2), Spell Mastery (Lv 18)',
+    },
+  },
+  {
+    id: 'cls-rogue',
+    name: 'Rogue',
+    category: 'class',
+    subtitle: 'Skilled Adventurer',
+    tags: ['Skill', 'Stealth', 'Sneak Attack'],
+    content: {
+      'Hit Die': 'd8',
+      'Primary Ability': 'Dexterity',
+      'Saving Throw Proficiencies': 'Dexterity, Intelligence',
+      'Armor Proficiencies': 'Light armor',
+      'Weapon Proficiencies': 'Simple weapons, hand crossbows, longswords, rapiers, shortswords',
+      Description:
+        'Rogues rely on skill, stealth, and their foes\' vulnerabilities to get the upper hand in any situation. They have a knack for finding the solution to just about any problem.',
+      'Key Features': 'Expertise (Lv 1), Sneak Attack (Lv 1), Thieves\' Cant (Lv 1), Cunning Action (Lv 2), Uncanny Dodge (Lv 5)',
+    },
+  },
+  {
+    id: 'cls-cleric',
+    name: 'Cleric',
+    category: 'class',
+    subtitle: 'Divine Spellcaster',
+    tags: ['Caster', 'Divine', 'Healer', 'Support'],
+    content: {
+      'Hit Die': 'd8',
+      'Primary Ability': 'Wisdom',
+      'Saving Throw Proficiencies': 'Wisdom, Charisma',
+      'Armor Proficiencies': 'Light armor, medium armor, shields',
+      'Weapon Proficiencies': 'Simple weapons',
+      Description:
+        'Clerics are intermediaries between the mortal world and the distant planes of the gods. As varied as the gods they serve, clerics strive to embody the handiwork of their deities. A cleric of the Life domain is a powerful healer, while a cleric of the War domain can dish out destruction.',
+      'Key Features': 'Spellcasting (Lv 1), Divine Domain (Lv 1), Channel Divinity (Lv 2), Destroy Undead (Lv 5), Divine Intervention (Lv 10)',
+    },
+  },
+]
