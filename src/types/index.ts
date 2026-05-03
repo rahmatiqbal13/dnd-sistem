@@ -2,15 +2,26 @@ export type Role = 'dm' | 'player'
 
 export type DiceType = 4 | 6 | 8 | 10 | 12 | 20 | 100
 
+export type RollMode = 'normal' | 'advantage' | 'disadvantage'
+
 export interface DiceRollResult {
   id: string
   dice: DiceType
   count: number
   modifier: number
+  /** Hasil dadu yang masuk ke total (untuk adv/dis 1d20: hanya d20 terpilih). */
   rolls: number[]
   total: number
   advantage: boolean
   disadvantage: boolean
+  /** Disarankan; entri log lama bisa tanpa field ini. */
+  mode?: RollMode
+  /** Dua d20 independen jika adv/dis pada 1d20. */
+  d20Pair?: [number, number] | null
+  chosenD20?: number | null
+  discardedD20?: number | null
+  /** Contoh: `[18, 5] → Result: 18` (+ mod & total jika ada). */
+  detailLabel?: string
   timestamp: number
   rolledBy: string
 }
@@ -60,6 +71,9 @@ export interface Spell {
   duration: string
   description: string
   prepared: boolean
+  ritual?: boolean
+  costlyMaterial?: boolean
+  innate?: boolean
 }
 
 export interface EquipmentItem {
@@ -71,6 +85,9 @@ export interface EquipmentItem {
   equipped: boolean
 }
 
+/** Slot spell: key = tingkat slot 1–9 */
+export type SpellSlotsState = Partial<Record<number, { max: number; used: number }>>
+
 export interface Character {
   id: string
   name: string
@@ -78,7 +95,12 @@ export interface Character {
   race: CharacterRace
   level: number
   alignment: Alignment
+  /** Nama tampilan background */
   background: string
+  /** Id dari `BACKGROUNDS_2024` jika pakai data 2024 */
+  backgroundId?: string
+  subclass?: string
+  originFeat?: string
   abilityScores: AbilityScores
   maxHp: number
   currentHp: number
@@ -91,6 +113,8 @@ export interface Character {
   skills: Record<string, boolean>
   spells: Spell[]
   equipment: EquipmentItem[]
+  /** Slot spell otomatis untuk full/half/third/pact caster */
+  spellSlots?: SpellSlotsState
   gold: number
   notes: string
   traits: string

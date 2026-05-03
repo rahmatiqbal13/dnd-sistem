@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { ChevronLeft, Heart, Minus, Plus, Shield, Zap, Coins, Sword, Package, Trash2, Wand2 } from 'lucide-react'
 import { toast } from 'sonner'
@@ -16,7 +16,13 @@ import {
   abilityModifier, formatModifier, hpColor, hpColorText,
   ABILITY_LABELS, ABILITY_FULL, SKILLS_LIST,
 } from '@/lib/utils'
+import { resolveSpellSlots } from '@/lib/characterRules'
+import { getClass2024 } from '@/data/dnd2024/classes'
 import type { Ability, EquipmentItem } from '@/types'
+
+function componentsLookCostly(components: string): boolean {
+  return /\d+\s*gp/i.test(components) || /worth at least/i.test(components.toLowerCase())
+}
 
 export function CharacterSheetPage() {
   const { id } = useParams<{ id: string }>()
@@ -28,6 +34,34 @@ export function CharacterSheetPage() {
   const [hpDelta, setHpDelta] = useState('')
   const [showAddEquip, setShowAddEquip] = useState(false)
   const [equipForm, setEquipForm] = useState({ name: '', type: 'gear' as EquipmentItem['type'], weight: '', description: '' })
+  const [spellFilter, setSpellFilter] = useState<'all' | 'ritual' | 'material' | 'innate'>('all')
+
+  const slots = useMemo(
+    () => (character ? resolveSpellSlots(character) : {}),
+    [character]
+  )
+  const caster = character ? getClass2024(character.class) : undefined
+  const showSlots =
+    !!character && !!caster && caster.casterType !== 'none' && Object.keys(slots).length > 0
+
+  const filteredSpells = useMemo(() => {
+    if (!character) return []
+    return character.spells.filter((s) => {
+      if (spellFilter === 'ritual' && !s.ritual) return false
+      if (spellFilter === 'material' && !s.costlyMaterial && !componentsLookCostly(s.components)) return false
+      if (spellFilter === 'innate' && !s.innate) return false
+      return true
+    })
+  }, [character, spellFilter])
+
+  const adjustSpellSlot = (tier: number, delta: number) => {
+    if (!character) return
+    const s = resolveSpellSlots(character)
+    const cur = s[tier]
+    if (!cur) return
+    const used = Math.min(cur.max, Math.max(0, cur.used + delta))
+    updateCharacter(id!, { spellSlots: { ...s, [tier]: { max: cur.max, used } } })
+  }
 
   if (!character) {
     return (
@@ -84,8 +118,12 @@ export function CharacterSheetPage() {
             <h1 className="font-cinzel text-xl font-black text-parchment">{character.name}</h1>
             <p className="text-parchment/60 text-sm mt-0.5 font-crimson italic">
               Level {character.level} {character.race} {character.class}
+              {character.subclass ? ` · ${character.subclass}` : ''}
             </p>
-            <p className="text-parchment/40 text-xs mt-0.5">{character.alignment} · {character.background || 'No background'}</p>
+            <p className="text-parchment/40 text-xs mt-0.5">
+              {character.alignment} · {character.background || 'No background'}
+              {character.originFeat && ` · Feat: ${character.originFeat}`}
+            </p>
           </div>
           <Badge variant="dm" className="shrink-0">Lv {character.level}</Badge>
         </div>
@@ -241,31 +279,88 @@ export function CharacterSheetPage() {
 
         {/* SPELLS TAB */}
         <TabsContent value="spells">
+          {showSlots && (
+            <Card className="mb-3">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-xs">Spell Slots ({caster?.casterType} caster)</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                {Object.keys(slots)
+                  .map(Number)
+                  .sort((a, b) => a - b)
+                  .map((tier) => {
+                    const { max, used } = slots[tier]!
+                    return (
+                      <div key={tier} className="flex items-center justify-between gap-2 text-sm">
+                        <span className="text-forest-light dark:text-parchment/60 w-16">Lv {tier}</span>
+                        <span className="font-mono text-forest-deep dark:text-parchment">
+                          {used}/{max} dipakai
+                        </span>
+                        <div className="flex gap-1">
+                          <Button type="button" size="sm" variant="outline" className="h-7 px-2 text-xs" onClick={() => adjustSpellSlot(tier, 1)} disabled={used >= max}>
+                            Pakai
+                          </Button>
+                          <Button type="button" size="sm" variant="ghost" className="h-7 px-2 text-xs" onClick={() => adjustSpellSlot(tier, -1)} disabled={used <= 0}>
+                            Pulihkan
+                          </Button>
+                        </div>
+                      </div>
+                    )
+                  })}
+              </CardContent>
+            </Card>
+          )}
+
+          <div className="flex flex-wrap gap-1.5 mb-3">
+            {(['all', 'ritual', 'material', 'innate'] as const).map((f) => (
+              <Button
+                key={f}
+                type="button"
+                size="sm"
+                variant={spellFilter === f ? 'default' : 'outline'}
+                className="text-[10px] h-7 capitalize"
+                onClick={() => setSpellFilter(f)}
+              >
+                {f === 'all' ? 'Semua' : f === 'material' ? 'Material mahal' : f}
+              </Button>
+            ))}
+          </div>
+
           {character.spells.length === 0 ? (
             <div className="text-center py-10">
               <p className="text-4xl mb-3">✨</p>
               <p className="text-forest-light dark:text-parchment/50 text-sm">Belum ada spell.</p>
               <p className="text-[11px] text-forest-light/50 dark:text-parchment/30 mt-1">
-                (Tambah spell dari Kompendium — fitur coming soon)
+                Spell innate dari ras sudah otomatis saat membuat karakter baru.
               </p>
             </div>
+          ) : filteredSpells.length === 0 ? (
+            <p className="text-center text-sm text-forest-light dark:text-parchment/50 py-6">Tidak ada spell untuk filter ini.</p>
           ) : (
             <div className="space-y-2">
-              {character.spells.map((spell) => (
+              {filteredSpells.map((spell) => (
                 <Card key={spell.id}>
                   <CardContent className="p-3">
-                    <div className="flex items-start justify-between">
+                    <div className="flex items-start justify-between gap-2">
                       <div>
                         <p className="font-cinzel text-sm font-semibold text-forest-deep dark:text-parchment">{spell.name}</p>
                         <p className="text-xs text-forest-light dark:text-parchment/50">
                           Level {spell.level} {spell.school}
                         </p>
                       </div>
-                      <Badge variant={spell.prepared ? 'default' : 'outline'} className="text-[9px]">
-                        {spell.prepared ? 'Prepared' : 'Known'}
-                      </Badge>
+                      <div className="flex flex-col items-end gap-0.5 shrink-0">
+                        <Badge variant={spell.prepared ? 'default' : 'outline'} className="text-[9px]">
+                          {spell.prepared ? 'Prepared' : 'Known'}
+                        </Badge>
+                        {spell.innate && <Badge variant="outline" className="text-[8px] border-gold/50 text-gold">Innate</Badge>}
+                        {spell.ritual && <Badge variant="outline" className="text-[8px]">Ritual</Badge>}
+                        {(spell.costlyMaterial || componentsLookCostly(spell.components)) && (
+                          <Badge variant="outline" className="text-[8px]">Material</Badge>
+                        )}
+                      </div>
                     </div>
-                    <p className="text-xs text-forest-light dark:text-parchment/60 mt-1 line-clamp-2">{spell.description}</p>
+                    <p className="text-[10px] text-forest-light/70 dark:text-parchment/40 mt-1">{spell.components}</p>
+                    <p className="text-xs text-forest-light dark:text-parchment/60 mt-1 line-clamp-3">{spell.description}</p>
                   </CardContent>
                 </Card>
               ))}

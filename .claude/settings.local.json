@@ -10,7 +10,12 @@
       "Bash(npx vite *)",
       "Bash(git init *)",
       "Bash(git add *)",
-      "Bash(git commit -m ' *)"
+      "Bash(git commit -m ' *)",
+      "Bash(git remote *)",
+      "Bash(git branch *)",
+      "Bash(git push *)",
+      "Bash(dir \"c:\\\\Users\\\\rahmatiqbal13\\\\dnd-sistem\" /B)",
+      "Bash(npm install *)"
     ]
   }
 }

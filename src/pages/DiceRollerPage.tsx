@@ -3,12 +3,12 @@ import { Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { useDiceStore } from '@/store/diceStore'
 import { useAppStore } from '@/store/appStore'
-import { rollDice, DICE_TYPES, resultLabel } from '@/lib/dice'
+import { rollDice, DICE_TYPES, resultLabel, enrichDiceRoll } from '@/lib/dice'
 import { Button } from '@/components/ui/button'
 import { Switch } from '@/components/ui/switch'
 import { Label } from '@/components/ui/label'
 import { cn, formatDate } from '@/lib/utils'
-import type { DiceType } from '@/types'
+import type { DiceType, RollMode } from '@/types'
 
 const DICE_ICONS: Record<DiceType, string> = {
   4: '△', 6: '□', 8: '◇', 10: '⬟', 12: '⬠', 20: '⬡', 100: '%',
@@ -27,10 +27,14 @@ export function DiceRollerPage() {
   const [displayResult, setDisplayResult] = useState<number | null>(null)
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
+  const rollMode: RollMode = advantage ? 'advantage' : disadvantage ? 'disadvantage' : 'normal'
+
   const handleRoll = () => {
     if (isRolling) return
-    const result = rollDice(count, selectedDice, modifier, advantage, disadvantage, nickname ?? 'Adventurer')
+    const result = rollDice(count, selectedDice, modifier, rollMode, nickname ?? 'Adventurer')
     addRoll(result)
+
+    const natCheck = result.chosenD20 ?? (result.rolls[0] ?? result.total)
 
     if (diceAnimations) {
       setIsRolling(true)
@@ -44,14 +48,14 @@ export function DiceRollerPage() {
           clearInterval(intervalRef.current!)
           setDisplayResult(result.total)
           setIsRolling(false)
-          if (result.total === 20 && selectedDice === 20) toast.success('🎉 NATURAL 20!')
-          else if (result.total === 1 && selectedDice === 20) toast.error('💀 CRITICAL FAIL!')
+          if (selectedDice === 20 && natCheck === 20) toast.success('🎉 NATURAL 20!')
+          else if (selectedDice === 20 && natCheck === 1) toast.error('💀 NATURAL 1!')
         }
       }, 50)
     } else {
       setDisplayResult(result.total)
-      if (result.total === 20 && selectedDice === 20) toast.success('🎉 NATURAL 20!')
-      else if (result.total === 1 && selectedDice === 20) toast.error('💀 CRITICAL FAIL!')
+      if (selectedDice === 20 && natCheck === 20) toast.success('🎉 NATURAL 20!')
+      else if (selectedDice === 20 && natCheck === 1) toast.error('💀 NATURAL 1!')
     }
   }
 
@@ -65,7 +69,10 @@ export function DiceRollerPage() {
     if (!disadvantage) setAdvantage(false)
   }
 
-  const latestRoll = rollLog[0]
+  const latestRoll = rollLog[0] ? enrichDiceRoll(rollLog[0]) : null
+  const pair = latestRoll?.d20Pair
+  const chosen = latestRoll?.chosenD20
+  const discarded = latestRoll?.discardedD20
 
   return (
     <div className="max-w-lg mx-auto px-4 py-6">
@@ -75,6 +82,33 @@ export function DiceRollerPage() {
 
       {/* Dice Result Display */}
       <div className="flex flex-col items-center py-8 mb-5 rounded-xl bg-forest-deep dark:bg-midnight/80 border border-forest-mid/30">
+        {pair && chosen != null && discarded != null && displayResult === latestRoll?.total && !isRolling ? (
+          <div className="flex items-center justify-center gap-4 mb-3 px-4">
+            <div
+              className={cn(
+                'flex flex-col items-center rounded-xl border-2 px-5 py-3 min-w-[88px]',
+                chosen === pair[0]
+                  ? 'border-gold bg-gold/20 shadow-[0_0_12px_rgba(232,184,75,0.35)]'
+                  : 'border-forest-mid/40 opacity-45'
+              )}
+            >
+              <span className="text-parchment/50 text-[10px] uppercase tracking-wider">{chosen === pair[0] ? 'Dipakai' : 'Buang'}</span>
+              <span className="text-4xl font-cinzel font-black text-gold-light">{pair[0]}</span>
+            </div>
+            <div
+              className={cn(
+                'flex flex-col items-center rounded-xl border-2 px-5 py-3 min-w-[88px]',
+                chosen === pair[1]
+                  ? 'border-gold bg-gold/20 shadow-[0_0_12px_rgba(232,184,75,0.35)]'
+                  : 'border-forest-mid/40 opacity-45'
+              )}
+            >
+              <span className="text-parchment/50 text-[10px] uppercase tracking-wider">{chosen === pair[1] ? 'Dipakai' : 'Buang'}</span>
+              <span className="text-4xl font-cinzel font-black text-gold-light">{pair[1]}</span>
+            </div>
+          </div>
+        ) : null}
+
         <div
           className={cn(
             'text-7xl font-cinzel font-black text-gold-light mb-2 transition-all',
@@ -84,16 +118,20 @@ export function DiceRollerPage() {
           {displayResult !== null ? displayResult : '?'}
         </div>
         {latestRoll && displayResult === latestRoll.total && !isRolling && (
-          <div className="text-parchment/60 text-sm font-mono text-center px-4">
+          <div className="text-parchment/60 text-sm font-mono text-center px-4 space-y-1">
             <p>{resultLabel(latestRoll)}</p>
-            {latestRoll.count > 1 && (
+            {latestRoll.detailLabel && (
+              <p className="text-parchment/50 text-xs whitespace-pre-wrap">{latestRoll.detailLabel}</p>
+            )}
+            {!pair && latestRoll.count > 1 && (
               <p className="text-parchment/40 text-xs mt-1">
-                [{latestRoll.rolls.join(', ')}] {modifier !== 0 ? `+ ${modifier}` : ''}
+                [{latestRoll.rolls.join(', ')}]
+                {modifier !== 0 ? ` ${modifier > 0 ? '+' + modifier : modifier}` : ''}
               </p>
             )}
           </div>
         )}
-        {!displayResult && (
+        {!displayResult && !isRolling && (
           <p className="text-parchment/40 text-sm">Pilih dadu dan tekan Roll</p>
         )}
       </div>
@@ -103,6 +141,7 @@ export function DiceRollerPage() {
         {DICE_TYPES.map((d) => (
           <button
             key={d}
+            type="button"
             onClick={() => setSelectedDice(d)}
             className={cn(
               'flex flex-col items-center justify-center py-2 rounded-lg border-2 transition-all font-cinzel font-bold text-xs min-h-[52px]',
@@ -123,30 +162,51 @@ export function DiceRollerPage() {
           <Label className="text-xs mb-1 block">Jumlah Dadu</Label>
           <div className="flex items-center gap-2">
             <button
+              type="button"
               onClick={() => setCount((c) => Math.max(1, c - 1))}
               className="h-9 w-9 rounded-md border border-forest-deep/20 flex items-center justify-center text-forest-deep dark:text-parchment hover:bg-forest-deep/5 font-bold"
-            >-</button>
+            >
+              -
+            </button>
             <span className="font-mono font-bold text-forest-deep dark:text-parchment flex-1 text-center text-lg">{count}</span>
             <button
+              type="button"
               onClick={() => setCount((c) => Math.min(20, c + 1))}
               className="h-9 w-9 rounded-md border border-forest-deep/20 flex items-center justify-center text-forest-deep dark:text-parchment hover:bg-forest-deep/5 font-bold"
-            >+</button>
+            >
+              +
+            </button>
           </div>
         </div>
         <div>
           <Label className="text-xs mb-1 block">Modifier</Label>
           <div className="flex items-center gap-2">
             <button
+              type="button"
               onClick={() => setModifier((m) => m - 1)}
               className="h-9 w-9 rounded-md border border-forest-deep/20 flex items-center justify-center text-forest-deep dark:text-parchment hover:bg-forest-deep/5 font-bold"
-            >-</button>
-            <span className={cn('font-mono font-bold flex-1 text-center text-lg', modifier > 0 ? 'text-forest-mid dark:text-gold-light' : modifier < 0 ? 'text-crimson' : 'text-forest-deep dark:text-parchment')}>
+            >
+              -
+            </button>
+            <span
+              className={cn(
+                'font-mono font-bold flex-1 text-center text-lg',
+                modifier > 0
+                  ? 'text-forest-mid dark:text-gold-light'
+                  : modifier < 0
+                    ? 'text-crimson'
+                    : 'text-forest-deep dark:text-parchment'
+              )}
+            >
               {modifier > 0 ? `+${modifier}` : modifier}
             </span>
             <button
+              type="button"
               onClick={() => setModifier((m) => m + 1)}
               className="h-9 w-9 rounded-md border border-forest-deep/20 flex items-center justify-center text-forest-deep dark:text-parchment hover:bg-forest-deep/5 font-bold"
-            >+</button>
+            >
+              +
+            </button>
           </div>
         </div>
       </div>
@@ -156,11 +216,15 @@ export function DiceRollerPage() {
         <div className="flex gap-4 mb-4">
           <div className="flex items-center gap-2">
             <Switch id="adv" checked={advantage} onCheckedChange={toggleAdvantage} />
-            <Label htmlFor="adv" className="text-sm cursor-pointer text-forest-mid dark:text-gold-light">Advantage</Label>
+            <Label htmlFor="adv" className="text-sm cursor-pointer text-forest-mid dark:text-gold-light">
+              Advantage
+            </Label>
           </div>
           <div className="flex items-center gap-2">
             <Switch id="dis" checked={disadvantage} onCheckedChange={toggleDisadvantage} />
-            <Label htmlFor="dis" className="text-sm cursor-pointer text-crimson">Disadvantage</Label>
+            <Label htmlFor="dis" className="text-sm cursor-pointer text-crimson">
+              Disadvantage
+            </Label>
           </div>
         </div>
       )}
@@ -172,7 +236,9 @@ export function DiceRollerPage() {
         onClick={handleRoll}
         disabled={isRolling}
       >
-        {isRolling ? 'Rolling...' : `🎲 Roll ${count}D${selectedDice}${modifier !== 0 ? (modifier > 0 ? `+${modifier}` : modifier) : ''}`}
+        {isRolling
+          ? 'Rolling...'
+          : `🎲 Roll ${count}D${selectedDice}${modifier !== 0 ? (modifier > 0 ? `+${modifier}` : `${modifier}`) : ''}`}
       </Button>
 
       {/* Roll Log */}
@@ -188,29 +254,41 @@ export function DiceRollerPage() {
             </Button>
           </div>
           <div className="space-y-1.5 max-h-64 overflow-y-auto pr-1">
-            {rollLog.map((r) => (
-              <div
-                key={r.id}
-                className="flex items-center justify-between px-3 py-2 rounded-lg bg-white dark:bg-midnight/60 border border-forest-deep/10 dark:border-forest-mid/15"
-              >
-                <div>
-                  <span className="text-xs text-forest-deep dark:text-parchment font-mono font-medium">
-                    {resultLabel(r)}
-                  </span>
-                  <span className="text-[10px] text-forest-light/60 dark:text-parchment/30 ml-2">
-                    by {r.rolledBy}
+            {rollLog.map((raw) => {
+              const r = enrichDiceRoll(raw)
+              return (
+                <div
+                  key={r.id}
+                  className="flex flex-col gap-0.5 px-3 py-2 rounded-lg bg-white dark:bg-midnight/60 border border-forest-deep/10 dark:border-forest-mid/15"
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-xs text-forest-deep dark:text-parchment font-mono font-medium">
+                      {resultLabel(r)}
+                    </span>
+                    <span
+                      className={cn(
+                        'font-mono font-black text-base shrink-0',
+                        r.dice === 20 && (r.chosenD20 ?? r.rolls[0]) === 20
+                          ? 'text-gold'
+                          : r.dice === 20 && (r.chosenD20 ?? r.rolls[0]) === 1
+                            ? 'text-crimson'
+                            : 'text-forest-deep dark:text-parchment'
+                      )}
+                    >
+                      {r.total}
+                    </span>
+                  </div>
+                  {r.detailLabel && (
+                    <p className="text-[10px] text-forest-light dark:text-parchment/45 font-mono leading-snug">
+                      {r.detailLabel}
+                    </p>
+                  )}
+                  <span className="text-[10px] text-forest-light/60 dark:text-parchment/30">
+                    {r.rolledBy} · {formatDate(r.timestamp)}
                   </span>
                 </div>
-                <span className={cn(
-                  'font-mono font-black text-base',
-                  r.dice === 20 && r.total === 20 ? 'text-gold' :
-                  r.dice === 20 && r.total === 1 ? 'text-crimson' :
-                  'text-forest-deep dark:text-parchment'
-                )}>
-                  {r.total}
-                </span>
-              </div>
-            ))}
+              )
+            })}
           </div>
         </div>
       )}

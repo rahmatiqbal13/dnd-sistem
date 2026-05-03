@@ -1,32 +1,46 @@
-import { createClient } from '@supabase/supabase-js'
+import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 import type { Database } from './database.types'
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string
+const url = (import.meta.env.VITE_SUPABASE_URL as string | undefined)?.trim()
+const key = (import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined)?.trim()
 
-if (!supabaseUrl || !supabaseAnonKey) {
-  throw new Error(
-    'Missing VITE_SUPABASE_URL or VITE_SUPABASE_ANON_KEY.\n' +
-    'Copy .env.example → .env.local and fill in your Supabase project values.'
-  )
+/** False when `.env.local` is missing or empty — app still runs (local-only campaigns). */
+export const isSupabaseConfigured = Boolean(url && key)
+
+let _client: SupabaseClient<Database> | null = null
+
+export function getSupabase(): SupabaseClient<Database> | null {
+  if (!isSupabaseConfigured) return null
+  if (!_client) {
+    _client = createClient<Database>(url!, key!, {
+      auth: {
+        persistSession: true,
+        autoRefreshToken: true,
+      },
+    })
+  }
+  return _client
 }
 
-export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey, {
-  auth: {
-    persistSession: true,
-    autoRefreshToken: true,
-  },
-})
+function client(): SupabaseClient<Database> {
+  const c = getSupabase()
+  if (!c) {
+    throw new Error(
+      'Supabase belum dikonfigurasi. Salin .env.example → .env.local dan isi VITE_SUPABASE_URL serta VITE_SUPABASE_ANON_KEY.'
+    )
+  }
+  return c
+}
 
-// ── Typed table helpers ────────────────────────────────────────────────────────
+// ── Typed table helpers (throw only if called without Supabase env) ───────────
 
 export const db = {
-  profiles:         () => supabase.from('profiles'),
-  campaigns:        () => supabase.from('campaigns'),
-  characters:       () => supabase.from('characters'),
-  campaignMembers:  () => supabase.from('campaign_members'),
-  campaignNpcs:     () => supabase.from('campaign_npcs'),
-  campaignSessions: () => supabase.from('campaign_sessions'),
-  personalNotes:    () => supabase.from('personal_notes'),
-  diceRolls:        () => supabase.from('dice_rolls'),
+  profiles: () => client().from('profiles'),
+  campaigns: () => client().from('campaigns'),
+  characters: () => client().from('characters'),
+  campaignMembers: () => client().from('campaign_members'),
+  campaignNpcs: () => client().from('campaign_npcs'),
+  campaignSessions: () => client().from('campaign_sessions'),
+  personalNotes: () => client().from('personal_notes'),
+  diceRolls: () => client().from('dice_rolls'),
 }

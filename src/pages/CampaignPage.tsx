@@ -46,22 +46,30 @@ export function CampaignPage() {
     defaultValues: { inviteCode: '' },
   })
 
-  const handleCreate = createForm.handleSubmit((data) => {
+  const handleCreate = createForm.handleSubmit(async (data) => {
     if (!nickname) return
-    const campaign = createCampaign(data.name, data.description ?? '', nickname)
-    toast.success(`Kampanye "${campaign.name}" dibuat! Kode: ${campaign.inviteCode}`)
-    createForm.reset()
+    try {
+      const campaign = await createCampaign(data.name, data.description ?? '', nickname)
+      toast.success(`Kampanye "${campaign.name}" dibuat! Kode: ${campaign.inviteCode}`)
+      createForm.reset()
+    } catch {
+      toast.error('Gagal menyimpan kampanye ke server. Periksa koneksi dan pastikan Supabase sudah benar.')
+    }
   })
 
-  const handleJoin = joinForm.handleSubmit((data) => {
+  const handleJoin = joinForm.handleSubmit(async (data) => {
     if (!nickname || !role) return
-    const campaign = joinCampaign(data.inviteCode, nickname, role)
-    if (!campaign) {
-      toast.error('Kode invite tidak valid atau kampanye tidak aktif')
-      return
+    try {
+      const campaign = await joinCampaign(data.inviteCode, nickname, role)
+      if (!campaign) {
+        toast.error('Kode invite tidak valid atau kampanye tidak aktif')
+        return
+      }
+      toast.success(`Bergabung ke "${campaign.name}"!`)
+      joinForm.reset()
+    } catch {
+      toast.error('Gagal bergabung. Periksa koneksi internet Anda.')
     }
-    toast.success(`Bergabung ke "${campaign.name}"!`)
-    joinForm.reset()
   })
 
   const handleKick = (campaignId: string, memberNickname: string) => {
@@ -405,7 +413,7 @@ export function CampaignPage() {
           <CardContent>
             <form onSubmit={handleJoin} className="space-y-3">
               <div>
-                <Label className="text-xs">Kode Invite (6 huruf)</Label>
+                <Label className="text-xs">Kode Invite (6 karakter)</Label>
                 <Input
                   placeholder="ABCDEF"
                   maxLength={6}

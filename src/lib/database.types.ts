@@ -39,6 +39,7 @@ export interface Database {
           theme_id?: string
           updated_at?: string
         }
+        Relationships: []
       }
 
       campaigns: {
@@ -74,6 +75,7 @@ export interface Database {
           session_notes?: string
           updated_at?: string
         }
+        Relationships: []
       }
 
       characters: {
@@ -169,6 +171,7 @@ export interface Database {
           flaws?: string
           updated_at?: string
         }
+        Relationships: []
       }
 
       campaign_members: {
@@ -196,6 +199,7 @@ export interface Database {
           character_id?: string | null
           joined_at?: string
         }
+        Relationships: []
       }
 
       campaign_npcs: {
@@ -222,6 +226,7 @@ export interface Database {
           role?: string
           notes?: string
         }
+        Relationships: []
       }
 
       campaign_sessions: {
@@ -254,6 +259,7 @@ export interface Database {
           xp_awarded?: number
           updated_at?: string
         }
+        Relationships: []
       }
 
       personal_notes: {
@@ -278,6 +284,7 @@ export interface Database {
           note?: string
           updated_at?: string
         }
+        Relationships: []
       }
 
       dice_rolls: {
@@ -317,6 +324,7 @@ export interface Database {
           disadvantage?: boolean
           rolled_at?: string
         }
+        Relationships: []
       }
     }
 

@@ -1,11 +1,14 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useDeferredValue, useEffect } from 'react'
 import { Search, X, ChevronRight, Sword, Sparkles, Activity, GraduationCap, Shield } from 'lucide-react'
 import { COMPENDIUM_DATA } from '@/data/compendium'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { cn } from '@/lib/utils'
 import type { CompendiumCategory, CompendiumEntry } from '@/types'
+
+const LIST_BATCH = 100
 
 const CATEGORIES: { value: CompendiumCategory | 'all'; label: string; icon: React.ReactNode }[] = [
   { value: 'all', label: 'Semua', icon: null },
@@ -28,19 +31,35 @@ export function CompendiumPage() {
   const [search, setSearch] = useState('')
   const [category, setCategory] = useState<CompendiumCategory | 'all'>('all')
   const [selected, setSelected] = useState<CompendiumEntry | null>(null)
+  const [visibleCount, setVisibleCount] = useState(LIST_BATCH)
+
+  const deferredSearch = useDeferredValue(search)
 
   const filtered = useMemo(() => {
     return COMPENDIUM_DATA.filter((entry) => {
       const matchCat = category === 'all' || entry.category === category
-      const q = search.toLowerCase()
+      const q = deferredSearch.toLowerCase().trim()
+      const subtitle = String(entry.subtitle ?? '')
+      const tags = Array.isArray(entry.tags) ? entry.tags : []
+      const name = String(entry.name ?? '')
       const matchSearch =
         !q ||
-        entry.name.toLowerCase().includes(q) ||
-        entry.subtitle.toLowerCase().includes(q) ||
-        entry.tags.some((t) => t.toLowerCase().includes(q))
+        name.toLowerCase().includes(q) ||
+        subtitle.toLowerCase().includes(q) ||
+        tags.some((t) => String(t).toLowerCase().includes(q))
       return matchCat && matchSearch
     })
-  }, [search, category])
+  }, [deferredSearch, category])
+
+  useEffect(() => {
+    setVisibleCount(LIST_BATCH)
+  }, [deferredSearch, category])
+
+  const visible = useMemo(
+    () => filtered.slice(0, visibleCount),
+    [filtered, visibleCount]
+  )
+  const hasMore = filtered.length > visible.length
 
   if (selected) {
     return (
@@ -59,9 +78,9 @@ export function CompendiumPage() {
               <h1 className="font-cinzel text-2xl font-black text-forest-deep dark:text-gold-light">
                 {selected.name}
               </h1>
-              <p className="text-forest-light dark:text-parchment/50 text-sm mt-0.5">{selected.subtitle}</p>
+              <p className="text-forest-light dark:text-parchment/50 text-sm mt-0.5">{selected.subtitle ?? ''}</p>
               <div className="flex flex-wrap gap-1 mt-2">
-                {selected.tags.map((tag) => (
+                {(selected.tags ?? []).map((tag) => (
                   <Badge key={tag} variant="outline" className="text-[10px] px-1.5 py-0">{tag}</Badge>
                 ))}
               </div>
@@ -74,16 +93,36 @@ export function CompendiumPage() {
 
         <Card>
           <CardContent className="p-4 space-y-3">
-            {Object.entries(selected.content).map(([key, value]) => (
+            {Object.entries(selected.content ?? {}).map(([key, value]) => (
               <div key={key}>
                 <p className="text-[10px] font-bold text-forest-light dark:text-parchment/40 uppercase tracking-wider mb-0.5">
                   {key}
                 </p>
-                <p className="text-sm text-forest-deep dark:text-parchment/80 font-crimson leading-relaxed">
-                  {value}
+                <p className="text-sm text-forest-deep dark:text-parchment/80 font-crimson leading-relaxed whitespace-pre-wrap">
+                  {typeof value === 'string' ? value : JSON.stringify(value)}
                 </p>
               </div>
             ))}
+          </CardContent>
+        </Card>
+      </div>
+    )
+  }
+
+  if (COMPENDIUM_DATA.length === 0) {
+    return (
+      <div className="max-w-lg mx-auto px-4 py-6">
+        <h1 className="font-cinzel text-2xl font-black text-forest-deep dark:text-gold-light mb-4">
+          Kompendium
+        </h1>
+        <Card>
+          <CardContent className="p-6 text-center space-y-2">
+            <p className="text-forest-light dark:text-parchment/60 text-sm">
+              Data kompendium belum diisi. Di folder proyek, jalankan:
+            </p>
+            <code className="block text-xs bg-forest-deep/10 dark:bg-parchment/5 p-2 rounded font-mono">
+              npm run fetch:compendium
+            </code>
           </CardContent>
         </Card>
       </div>
@@ -137,9 +176,10 @@ export function CompendiumPage() {
       {/* Results */}
       <p className="text-xs text-forest-light dark:text-parchment/40 mb-2">
         {filtered.length} hasil
+        {hasMore ? ` · menampilkan ${visible.length}` : ''}
       </p>
       <div className="space-y-2">
-        {filtered.map((entry) => (
+        {visible.map((entry) => (
           <button
             key={entry.id}
             onClick={() => setSelected(entry)}
@@ -157,13 +197,13 @@ export function CompendiumPage() {
                         {entry.category}
                       </span>
                     </div>
-                    <p className="text-xs text-forest-light dark:text-parchment/50 mt-0.5">{entry.subtitle}</p>
+                    <p className="text-xs text-forest-light dark:text-parchment/50 mt-0.5">{entry.subtitle ?? ''}</p>
                     <div className="flex flex-wrap gap-1 mt-1">
-                      {entry.tags.slice(0, 3).map((tag) => (
+                      {(entry.tags ?? []).slice(0, 3).map((tag) => (
                         <span key={tag} className="text-[9px] text-forest-light/70 dark:text-parchment/30">{tag}</span>
                       ))}
-                      {entry.tags.length > 3 && (
-                        <span className="text-[9px] text-forest-light/40">+{entry.tags.length - 3}</span>
+                      {(entry.tags ?? []).length > 3 && (
+                        <span className="text-[9px] text-forest-light/40">+{(entry.tags ?? []).length - 3}</span>
                       )}
                     </div>
                   </div>
@@ -176,8 +216,20 @@ export function CompendiumPage() {
         {filtered.length === 0 && (
           <div className="text-center py-12">
             <p className="text-4xl mb-3">📚</p>
-            <p className="text-forest-light dark:text-parchment/50">Tidak ada hasil untuk "{search}"</p>
+            <p className="text-forest-light dark:text-parchment/50">
+              {search.trim() ? `Tidak ada hasil untuk "${search}"` : 'Tidak ada entri untuk filter ini'}
+            </p>
           </div>
+        )}
+        {hasMore && (
+          <Button
+            type="button"
+            variant="outline"
+            className="w-full mt-4"
+            onClick={() => setVisibleCount((c) => c + LIST_BATCH)}
+          >
+            Muat lebih banyak ({filtered.length - visible.length} sisanya)
+          </Button>
         )}
       </div>
     </div>
