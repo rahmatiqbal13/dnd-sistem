@@ -80,14 +80,35 @@ export function defaultSpeed(race: CharacterRace): number {
 export function buildTraitsBlock(race: CharacterRace, cls: CharacterClass, bg: Background2024 | undefined): string {
   const r = getRace2024(race)
   const c = getClass2024(cls)
-  const parts: string[] = []
-  if (r?.traits) parts.push(`**Ras (${race})**\n${r.traits}`)
-  if (c?.summary) parts.push(`**Kelas (${cls})**\n${c.summary}`)
-  if (bg) {
-    parts.push(`**Background (${bg.name})**\n${bg.traitSummary}`)
-    parts.push(`**Origin Feat:** ${bg.originFeat}`)
+  
+  const sections: string[] = []
+  
+  // Race section
+  if (r?.traits) {
+    sections.push(
+      `[ RACE: ${race} ]\n` +
+      `${r.traits}`
+    )
   }
-  return parts.join('\n\n')
+  
+  // Class section
+  if (c?.summary) {
+    sections.push(
+      `[ CLASS: ${cls} ]\n` +
+      `${c.summary}`
+    )
+  }
+  
+  // Background section
+  if (bg) {
+    sections.push(
+      `[ BACKGROUND: ${bg.name} ]\n` +
+      `${bg.traitSummary}\n\n` +
+      `Origin Feat: ${bg.originFeat}`
+    )
+  }
+  
+  return sections.join('\n\n──────────────────────\n\n')
 }
 
 export function spellSlotsForCharacter(cls: CharacterClass, level: number) {

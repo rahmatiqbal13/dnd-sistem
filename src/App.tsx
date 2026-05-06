@@ -15,6 +15,7 @@ import { MyNotesPage } from '@/pages/MyNotesPage'
 import { SessionsPage } from '@/pages/SessionsPage'
 import { HomebrewPage } from '@/pages/HomebrewPage'
 import { DmToolsPage } from '@/pages/DmToolsPage'
+import { SystemCheckPage } from '@/pages/SystemCheckPage'
 import { useAppStore } from '@/store/appStore'
 
 function RequireAuth({ children }: { children: React.ReactNode }) {
@@ -49,6 +50,7 @@ export default function App() {
           <Route path="/sessions" element={<SessionsPage />} />
           <Route path="/homebrew" element={<HomebrewPage />} />
           <Route path="/dm-tools" element={<DmToolsPage />} />
+          <Route path="/system-check" element={<SystemCheckPage />} />
         </Route>
         <Route path="*" element={<Navigate to="/dashboard" replace />} />
       </Routes>

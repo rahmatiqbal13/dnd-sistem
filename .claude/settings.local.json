@@ -15,7 +15,16 @@
       "Bash(git branch *)",
       "Bash(git push *)",
       "Bash(dir \"c:\\\\Users\\\\rahmatiqbal13\\\\dnd-sistem\" /B)",
-      "Bash(npm install *)"
+      "Bash(npm install *)",
+      "Bash(node -e \"const d = require\\('./src/data/generated/compendium.json'\\); const cats = {}; d.forEach\\(e => { cats[e.category] = \\(cats[e.category]||0\\)+1 }\\); console.log\\(JSON.stringify\\(cats, null, 2\\)\\); console.log\\('total:', d.length\\)\")",
+      "Bash(node -e \"const d = require\\('./src/data/generated/compendium.json'\\); const spells = d.filter\\(e=>e.category==='spell'\\); const sample = spells.slice\\(0,3\\); console.log\\(JSON.stringify\\(sample, null, 2\\)\\)\")",
+      "Bash(node -e \"const d = require\\('./src/data/generated/compendium.json'\\); const monsters = d.filter\\(e=>e.category==='monster'\\); const sample = monsters.slice\\(0,2\\); console.log\\(JSON.stringify\\(sample, null, 2\\)\\)\")",
+      "Bash(node -e \"const d = require\\('./src/data/generated/compendium.json'\\); const eq = d.filter\\(e=>e.category==='equipment'\\); const sample = eq.slice\\(0,3\\); console.log\\(JSON.stringify\\(sample, null, 2\\)\\)\")",
+      "Bash(node -e ' *)",
+      "PowerShell(npx tsc --noEmit 2>&1)",
+      "PowerShell(npx vite build 2>&1)",
+      "PowerShell(git add src/pages/CompendiumPage.tsx src/pages/CharacterSheetPage.tsx)",
+      "PowerShell(git push origin main 2>&1)"
     ]
   }
 }

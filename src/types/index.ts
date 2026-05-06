@@ -88,6 +88,36 @@ export interface EquipmentItem {
 /** Slot spell: key = tingkat slot 1–9 */
 export type SpellSlotsState = Partial<Record<number, { max: number; used: number }>>
 
+// ── Feats & Subclasses ─────────────────────────────────────────────────────
+
+export interface CharacterFeat {
+  featId: string
+  name: string
+  source: 'origin' | 'asi' | 'general'
+  levelAcquired: number
+  asiApplied?: { ability: Ability; bonus: number }[]
+}
+
+export interface SelectedSubclass {
+  subclassId: string
+  name: string
+  classId: CharacterClass
+  levelAcquired: number
+}
+
+export interface DeathSaves {
+  successes: number // 0-3
+  failures: number // 0-3
+}
+
+export type ExhaustionLevel = 0 | 1 | 2 | 3 | 4 | 5 | 6
+
+export interface HitDice {
+  type: 6 | 8 | 10 | 12
+  total: number
+  available: number
+}
+
 export interface Character {
   id: string
   name: string
@@ -101,6 +131,11 @@ export interface Character {
   backgroundId?: string
   subclass?: string
   originFeat?: string
+  selectedSubclass?: SelectedSubclass
+  feats?: CharacterFeat[]
+  hitDice: HitDice
+  deathSaves?: DeathSaves
+  exhaustionLevel?: ExhaustionLevel
   abilityScores: AbilityScores
   maxHp: number
   currentHp: number
@@ -111,6 +146,14 @@ export interface Character {
   proficiencyBonus: number
   savingThrows: Record<Ability, boolean>
   skills: Record<string, boolean>
+  /** Weapon proficiencies: simple, martial, or specific weapon names. */
+  weaponProficiencies: string[]
+  /** Armor proficiencies: light, medium, heavy, shield. */
+  armorProficiencies: string[]
+  /** Tool proficiencies: thieves tools, herbalism kit, artisan tools, etc. */
+  toolProficiencies: string[]
+  /** Languages known by the character. */
+  languages: string[]
   spells: Spell[]
   equipment: EquipmentItem[]
   /** Slot spell otomatis untuk full/half/third/pact caster */

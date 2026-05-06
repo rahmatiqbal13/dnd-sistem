@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { Dices, ChevronLeft, RefreshCw } from 'lucide-react'
+import { Dices, ChevronLeft, RefreshCw, Package, Coins } from 'lucide-react'
 import { toast } from 'sonner'
 import { useCharacterStore, defaultSavingThrows } from '@/store/characterStore'
 import { useAppStore } from '@/store/appStore'
@@ -18,12 +18,13 @@ import { rollAbilityScore } from '@/lib/dice'
 import { formatModifier, abilityModifier, ABILITY_LABELS, proficiencyBonus } from '@/lib/utils'
 import { BACKGROUNDS_2024, getBackground2024 } from '@/data/dnd2024/backgrounds'
 import { getClass2024 } from '@/data/dnd2024/classes'
+import { getRace2024, getRaceFeatures, getRaceLanguages, getRaceSpeed } from '@/data/dnd2024/races'
+import { getStartingEquipment, getDefaultArmorForClass, getDefaultShieldForClass, getDefaultGoldForClass } from '@/data/dnd2024/equipment'
 import {
   applyBackgroundAsi,
   computeMaxHp,
   computeArmorClass,
   defaultSpeed,
-  buildTraitsBlock,
   spellSlotsForCharacter,
   innateSpellsFromRace,
   type ArmorPreset,
@@ -89,6 +90,8 @@ export function CharacterBuilderPage() {
   const [armorPreset, setArmorPreset] = useState<ArmorPreset>('leather')
   const [shield, setShield] = useState(false)
   const [classSkills, setClassSkills] = useState<string[]>([])
+  const [startingGold, setStartingGold] = useState<number>(0)
+  const [equipmentItems, setEquipmentItems] = useState<string[]>([])
 
   const { register, handleSubmit, setValue, watch, formState: { errors } } = useForm<FormValues>({
     resolver: zodResolver(schema),
@@ -109,17 +112,11 @@ export function CharacterBuilderPage() {
     if (!cls || !raceName) return
     const hp = computeMaxHp(cls.hitDie, level, conMod)
     const ac = computeArmorClass(armorPreset, dexMod, shield)
-    const sp = defaultSpeed(raceName)
+    const sp = getRaceSpeed(raceName)
     setValue('maxHp', hp)
     setValue('armorClass', ac)
     setValue('speed', sp)
   }, [cls, level, conMod, dexMod, armorPreset, shield, raceName, setValue])
-
-  useEffect(() => {
-    if (!clsName || !raceName) return
-    const b = backgroundId ? getBackground2024(backgroundId) : undefined
-    setValue('traits', buildTraitsBlock(raceName, clsName, b))
-  }, [clsName, raceName, backgroundId, setValue])
 
   useEffect(() => {
     if (!cls) {
@@ -128,6 +125,63 @@ export function CharacterBuilderPage() {
     }
     setClassSkills((prev) => prev.filter((s) => cls.skillOptions.includes(s)).slice(0, cls.skillsChoose))
   }, [cls])
+
+  // Auto-select armor based on class proficiency
+  useEffect(() => {
+    if (!cls) return
+    
+    // Determine best default armor based on class proficiencies
+    const hasHeavy = cls.armorProficiencies.includes('heavy')
+    const hasMedium = cls.armorProficiencies.includes('medium')
+    const hasLight = cls.armorProficiencies.includes('light')
+    const hasShield = cls.armorProficiencies.includes('shield')
+    
+    let defaultArmor: ArmorPreset = 'none'
+    
+    if (hasHeavy) {
+      defaultArmor = 'chain-mail' // Starting heavy armor
+    } else if (hasMedium) {
+      defaultArmor = 'scale' // Starting medium armor
+    } else if (hasLight) {
+      defaultArmor = 'leather' // Starting light armor
+    }
+    
+    setArmorPreset(defaultArmor)
+    setShield(hasShield)
+  }, [cls])
+
+  // Auto-generate starting equipment when class/race/background changes
+  useEffect(() => {
+    if (!clsName) return
+    
+    const equipment: string[] = []
+    
+    // Class equipment
+    const classEq = getStartingEquipment(clsName)
+    if (classEq.armor) equipment.push(`Armor: ${classEq.armor}`)
+    if (classEq.shield) equipment.push('Shield')
+    if (classEq.weapons.length > 0) {
+      equipment.push('Weapons:')
+      classEq.weapons.forEach(w => equipment.push(`  - ${w}`))
+    }
+    if (classEq.tools && classEq.tools.length > 0) {
+      equipment.push('Tools:')
+      classEq.tools.forEach(t => equipment.push(`  - ${t}`))
+    }
+    if (classEq.gear.length > 0) {
+      equipment.push('Gear:')
+      classEq.gear.forEach(g => equipment.push(`  - ${g}`))
+    }
+    
+    // Background equipment
+    if (bg?.equipment && bg.equipment.length > 0) {
+      equipment.push('Background Items:')
+      bg.equipment.forEach(item => equipment.push(`  - ${item}`))
+    }
+    
+    setEquipmentItems(equipment)
+    setStartingGold(getDefaultGoldForClass(clsName))
+  }, [clsName, bg])
 
   const rollAll = () => {
     setBaseScores({
@@ -157,6 +211,41 @@ export function CharacterBuilderPage() {
     const innate = raceName ? innateSpellsFromRace(raceName) : []
     const slots = clsName ? spellSlotsForCharacter(clsName, data.level) : undefined
 
+    // Get class data for proficiencies and hit die
+    const classData = clsName ? getClass2024(clsName) : undefined
+    const hitDieType = classData?.hitDie ?? 8
+
+    // Initialize saving throws with class proficiencies
+    const classSavingThrows = classData?.savingThrows ?? []
+    const savingThrowsRecord = { ...defaultSavingThrows }
+    for (const ability of classSavingThrows) {
+      savingThrowsRecord[ability] = true
+    }
+
+    // Initialize proficiencies from class
+    const weaponProficiencies = classData?.weaponProficiencies ?? []
+    const armorProficiencies = classData?.armorProficiencies ?? []
+    const toolProficiencies = classData?.toolProficiencies ?? []
+
+    // Initialize languages from race (basic implementation - Common + racial languages)
+    const languages = ['Common']
+    if (raceName) {
+      // Add racial languages based on race
+      const raceLanguages: Record<string, string[]> = {
+        'Dragonborn': ['Draconic'],
+        'Dwarf': ['Dwarvish'],
+        'Elf': ['Elvish'],
+        'Gnome': ['Gnomish'],
+        'Half-Elf': ['Elvish'],
+        'Half-Orc': ['Orc'],
+        'Halfling': ['Halfling'],
+        'Tiefling': ['Infernal'],
+      }
+      if (raceLanguages[raceName]) {
+        languages.push(...raceLanguages[raceName])
+      }
+    }
+
     const char = addCharacter({
       name: data.name,
       class: data.class as CharacterClass,
@@ -175,12 +264,28 @@ export function CharacterBuilderPage() {
       speed: data.speed,
       initiative: abilityModifier(effectiveScores.dex),
       proficiencyBonus: proficiencyBonus(data.level),
-      savingThrows: defaultSavingThrows,
+      savingThrows: savingThrowsRecord,
       skills: skillsRecord,
+      weaponProficiencies,
+      armorProficiencies,
+      toolProficiencies,
+      languages,
       spells: innate,
       spellSlots: slots,
-      equipment: [],
-      gold: 0,
+      hitDice: {
+        type: hitDieType,
+        total: data.level,
+        available: data.level,
+      },
+      equipment: equipmentItems.map((name, idx) => ({
+        id: `eq-${Date.now()}-${idx}`,
+        name: name.replace(/^- /, '').trim(),
+        type: 'gear' as const,
+        weight: 0,
+        description: 'Starting equipment',
+        equipped: true,
+      })),
+      gold: startingGold,
       notes: '',
       traits: data.traits ?? '',
       ideals: data.ideals ?? '',
@@ -424,21 +529,217 @@ export function CharacterBuilderPage() {
           </CardContent>
         </Card>
 
+        {/* Character Traits - Auto Display */}
+        {(raceName || clsName || bg) && (
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm">Traits Karakter (Otomatis)</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {/* Race Traits */}
+              {raceName && (
+                <div className="p-3 bg-forest-deep/5 dark:bg-forest-deep/20 rounded-lg border-l-4 border-forest-deep">
+                  <p className="text-xs font-bold text-forest-deep dark:text-gold-light mb-1">
+                    🧬 RAS: {raceName.toUpperCase()}
+                  </p>
+                  <p className="text-sm text-forest-mid dark:text-parchment/80">
+                    {getRace2024(raceName)?.traits || 'No racial traits'}
+                  </p>
+                </div>
+              )}
+              
+              {/* Class Traits */}
+              {cls && (
+                <div className="p-3 bg-forest-deep/5 dark:bg-forest-deep/20 rounded-lg border-l-4 border-forest-mid">
+                  <p className="text-xs font-bold text-forest-deep dark:text-gold-light mb-1">
+                    ⚔️ KELAS: {clsName?.toUpperCase()}
+                  </p>
+                  <p className="text-sm text-forest-mid dark:text-parchment/80">
+                    {cls.summary}
+                  </p>
+                </div>
+              )}
+              
+              {/* Background Traits */}
+              {bg && (
+                <div className="p-3 bg-gold/10 dark:bg-gold/20 rounded-lg border-l-4 border-gold">
+                  <p className="text-xs font-bold text-forest-deep dark:text-gold-light mb-1">
+                    📜 BACKGROUND: {bg.name.toUpperCase()}
+                  </p>
+                  <p className="text-sm text-forest-mid dark:text-parchment/80 mb-2">
+                    {bg.traitSummary}
+                  </p>
+                  <p className="text-sm">
+                    <span className="font-semibold text-gold">★ Origin Feat:</span>{' '}
+                    <span className="text-forest-deep dark:text-parchment">{bg.originFeat}</span>
+                  </p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
+
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm">Kepribadian (opsional)</CardTitle>
+            <CardTitle className="text-sm">Kepribadian (Personality)</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
-            <div>
-              <Label>Traits (auto dari ras/kelas/background — bisa edit)</Label>
-              <Textarea className="mt-1 min-h-[100px] font-crimson text-sm" {...register('traits')} />
-            </div>
             {(['ideals', 'bonds', 'flaws'] as const).map((field) => (
               <div key={field}>
-                <Label htmlFor={field} className="capitalize">{field}</Label>
-                <Input id={field} placeholder={`${field}...`} {...register(field)} className="mt-1" />
+                <Label htmlFor={field} className="capitalize text-xs font-semibold text-forest-light">
+                  {field === 'ideals' ? 'Ideals (Cita-cita)' : field === 'bonds' ? 'Bonds (Ikatan)' : 'Flaws (Kelemahan)'}
+                </Label>
+                <Input 
+                  id={field} 
+                  placeholder={`Tulis ${field} karaktermu...`} 
+                  {...register(field)} 
+                  className="mt-1 text-sm" 
+                />
               </div>
             ))}
+          </CardContent>
+        </Card>
+
+        {/* Proficiencies Display */}
+        {(cls || bg) && (
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm">Proficiencies & Languages</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {cls && (
+                <>
+                  {cls.armorProficiencies.length > 0 && (
+                    <div className="p-3 bg-forest-deep/5 rounded-lg">
+                      <p className="text-[10px] uppercase text-forest-light/60 mb-1 font-bold">Armor Proficiencies</p>
+                      <p className="text-sm">{cls.armorProficiencies.join(', ')}</p>
+                    </div>
+                  )}
+                  <div className="p-3 bg-forest-deep/5 rounded-lg">
+                    <p className="text-[10px] uppercase text-forest-light/60 mb-1 font-bold">Weapon Proficiencies</p>
+                    <p className="text-sm">{cls.weaponProficiencies.join(', ')}</p>
+                  </div>
+                  {cls.toolProficiencies && cls.toolProficiencies.length > 0 && (
+                    <div className="p-3 bg-forest-deep/5 rounded-lg">
+                      <p className="text-[10px] uppercase text-forest-light/60 mb-1 font-bold">Tool Proficiencies</p>
+                      <p className="text-sm">{cls.toolProficiencies.join(', ')}</p>
+                    </div>
+                  )}
+                  <div className="p-3 bg-forest-deep/5 rounded-lg">
+                    <p className="text-[10px] uppercase text-forest-light/60 mb-1 font-bold">Saving Throws</p>
+                    <p className="text-sm">{cls.savingThrows.map(s => s.toUpperCase()).join(', ')}</p>
+                  </div>
+                </>
+              )}
+              
+              {/* Languages */}
+              <div className="p-3 bg-gold/10 rounded-lg border border-gold/30">
+                <p className="text-[10px] uppercase text-forest-light/60 mb-1 font-bold">Languages Known</p>
+                <p className="text-sm">
+                  {raceName ? getRaceLanguages(raceName).join(', ') : 'Common'}
+                  {bg?.languages && bg.languages.length > 0 && `, ${bg.languages.join(', ')}`}
+                </p>
+              </div>
+              
+              {bg?.toolProficiencies && bg.toolProficiencies.length > 0 && (
+                <div className="p-3 bg-forest-deep/5 rounded-lg">
+                  <p className="text-[10px] uppercase text-forest-light/60 mb-1 font-bold">Background Tools</p>
+                  <p className="text-sm">{bg.toolProficiencies.join(', ')}</p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Features Display */}
+        {(raceName || bg || cls) && (
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm">Features</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4 max-h-[400px] overflow-y-auto">
+              {/* Race Features */}
+              {raceName && (
+                <div>
+                  <p className="text-xs font-bold text-forest-mid mb-2">{raceName} Features</p>
+                  <div className="space-y-2">
+                    {getRaceFeatures(raceName).map((feature, idx) => (
+                      <div key={idx} className="text-sm">
+                        <span className="font-semibold">{feature.name}:</span>{' '}
+                        <span className="text-forest-light">{feature.description}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+              
+              {/* Background Features */}
+              {bg && bg.features.length > 0 && (
+                <div className="border-t border-forest-deep/10 pt-3">
+                  <p className="text-xs font-bold text-forest-mid mb-2">{bg.name} Background Features</p>
+                  <div className="space-y-2">
+                    {bg.features.map((feature, idx) => (
+                      <div key={idx} className="text-sm">
+                        <span className="font-semibold">{feature.name}:</span>{' '}
+                        <span className="text-forest-light">{feature.description}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+              
+              {/* Class Features Summary */}
+              {cls && (
+                <div className="border-t border-forest-deep/10 pt-3">
+                  <p className="text-xs font-bold text-forest-mid mb-2">{cls.id} Class Features</p>
+                  <div className="text-sm text-forest-light">
+                    <p className="mb-1"><span className="font-semibold">Hit Die:</span> d{cls.hitDie}</p>
+                    <p className="mb-1"><span className="font-semibold">Spellcasting:</span> {cls.casterType === 'none' ? 'None' : cls.casterType}</p>
+                    <p><span className="font-semibold">Subclass Level:</span> Level {cls.subclassLevel}</p>
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
+
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm flex items-center gap-2">
+              <Package className="h-4 w-4" />
+              Equipment & Gold (Auto-Generated)
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div>
+              <Label className="flex items-center gap-2">
+                <Coins className="h-4 w-4 text-gold" />
+                Starting Gold (gp)
+              </Label>
+              <Input 
+                type="number" 
+                min={0} 
+                value={startingGold}
+                onChange={(e) => setStartingGold(parseInt(e.target.value) || 0)}
+                className="mt-1 text-center font-mono"
+                placeholder="0"
+              />
+              <p className="text-[10px] text-forest-light mt-1">
+                Auto-generated from class. Can be customized.
+              </p>
+            </div>
+            
+            <div>
+              <Label>Starting Equipment</Label>
+              <Textarea 
+                className="mt-1 min-h-[120px] text-sm font-mono text-xs" 
+                value={equipmentItems.join('\n')}
+                onChange={(e) => setEquipmentItems(e.target.value.split('\n').filter(s => s.trim()))}
+              />
+              <p className="text-[10px] text-forest-light mt-1">
+                Equipment auto-generated from class & background. Edit as needed.
+              </p>
+            </div>
           </CardContent>
         </Card>
 

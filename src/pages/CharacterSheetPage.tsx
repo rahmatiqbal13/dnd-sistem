@@ -2,7 +2,8 @@ import { useState, useMemo, useDeferredValue } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import {
   ChevronLeft, Heart, Minus, Plus, Shield, Zap, Coins,
-  Sword, Package, Trash2, Wand2, Search, X,
+  Sword, Package, Trash2, Wand2, Search, X, ChevronUp,
+  Dices, Moon, Sun, Sparkles,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { useCharacterStore } from '@/store/characterStore'
@@ -24,7 +25,11 @@ import {
 } from '@/lib/utils'
 import { resolveSpellSlots } from '@/lib/characterRules'
 import { getClass2024 } from '@/data/dnd2024/classes'
+import { getRace2024 } from '@/data/dnd2024/races'
+import { getBackground2024 } from '@/data/dnd2024/backgrounds'
 import { COMPENDIUM_DATA } from '@/data/compendium'
+import { LevelUpDialog } from '@/components/character/LevelUpDialog'
+import { canLevelUp, getLevelUpRequirements } from '@/lib/levelUp'
 import type { Ability, EquipmentItem, CompendiumEntry } from '@/types'
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -224,11 +229,18 @@ export function CharacterSheetPage() {
   const removeSpell = useCharacterStore((s) => s.removeSpell)
   const addEquipment = useCharacterStore((s) => s.addEquipment)
   const removeEquipment = useCharacterStore((s) => s.removeEquipment)
+  const levelUp = useCharacterStore((s) => s.levelUp)
+  const shortRest = useCharacterStore((s) => s.shortRest)
+  const longRest = useCharacterStore((s) => s.longRest)
   const [hpDelta, setHpDelta] = useState('')
   const [showAddEquip, setShowAddEquip] = useState(false)
   const [equipForm, setEquipForm] = useState({ name: '', type: 'gear' as EquipmentItem['type'], weight: '', description: '' })
   const [spellFilter, setSpellFilter] = useState<'all' | 'ritual' | 'material' | 'innate'>('all')
   const [showSpellPicker, setShowSpellPicker] = useState(false)
+  const [showLevelUp, setShowLevelUp] = useState(false)
+  const [showShortRest, setShowShortRest] = useState(false)
+  const [showLongRest, setShowLongRest] = useState(false)
+  const [hitDiceToSpend, setHitDiceToSpend] = useState(1)
 
   const slots = useMemo(
     () => (character ? resolveSpellSlots(character) : {}),
@@ -337,70 +349,156 @@ export function CharacterSheetPage() {
 
   return (
     <div className="max-w-lg mx-auto px-4 py-6">
-      {/* Back */}
+      {/* Back Button */}
       <button
         onClick={() => navigate('/characters')}
-        className="flex items-center gap-1 text-sm text-forest-light dark:text-parchment/50 hover:text-forest-deep dark:hover:text-parchment mb-4 transition-colors"
+        className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium text-forest-light hover:text-forest-deep hover:bg-forest-deep/5 transition-all mb-4"
       >
-        <ChevronLeft className="h-4 w-4" />
-        Daftar Karakter
+        <div className="w-8 h-8 rounded-full bg-forest-deep/10 flex items-center justify-center">
+          <ChevronLeft className="h-4 w-4" />
+        </div>
+        <span>Kembali ke Daftar</span>
       </button>
 
-      {/* Character Header */}
-      <div className="bg-forest-deep dark:bg-midnight/80 rounded-xl p-4 mb-5 border border-forest-mid/30">
-        <div className="flex items-start justify-between mb-3">
-          <div>
-            <h1 className="font-cinzel text-xl font-black text-parchment">{character.name}</h1>
-            <p className="text-parchment/60 text-sm mt-0.5 font-crimson italic">
-              Level {character.level} {character.race} {character.class}
-              {character.subclass ? ` · ${character.subclass}` : ''}
-            </p>
-            <p className="text-parchment/40 text-xs mt-0.5">
-              {character.alignment} · {character.background || 'No background'}
-              {character.originFeat && ` · Feat: ${character.originFeat}`}
-            </p>
-          </div>
-          <Badge variant="dm" className="shrink-0">Lv {character.level}</Badge>
-        </div>
-
-        {/* HP Bar */}
-        <div className="mb-2">
-          <div className="flex items-center justify-between mb-1">
-            <div className="flex items-center gap-1">
-              <Heart className="h-3.5 w-3.5 text-crimson" />
-              <span className="text-parchment/70 text-xs">HP</span>
+      {/* Character Header Card */}
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-forest-deep via-forest-deep to-forest-mid p-6 mb-6 shadow-xl">
+        {/* Decorative elements */}
+        <div className="absolute top-0 right-0 w-64 h-64 bg-gold/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
+        <div className="absolute bottom-0 left-0 w-48 h-48 bg-forest-light/10 rounded-full blur-3xl translate-y-1/2 -translate-x-1/2" />
+        
+        <div className="relative z-10">
+          {/* Top Row */}
+          <div className="flex items-start justify-between mb-6">
+            <div className="flex items-center gap-4">
+              {/* Avatar */}
+              <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-gold to-gold-light flex items-center justify-center text-midnight font-cinzel font-bold text-2xl shadow-lg">
+                {character.name.charAt(0).toUpperCase()}
+              </div>
+              
+              {/* Name & Info */}
+              <div>
+                <h1 className="font-cinzel text-2xl md:text-3xl font-black text-parchment">{character.name}</h1>
+                <p className="text-gold-light/90 text-sm font-crimson">
+                  Level {character.level} {character.race} {character.class}
+                </p>
+                <div className="flex items-center gap-2 mt-1 flex-wrap">
+                  {character.subclass && (
+                    <Badge className="bg-forest-mid/50 text-parchment border-forest-light/30 text-xs">
+                      {character.subclass}
+                    </Badge>
+                  )}
+                  <Badge variant="outline" className="text-parchment/70 border-parchment/20 text-xs">
+                    {character.alignment}
+                  </Badge>
+                  {character.originFeat && (
+                    <Badge className="bg-gold/30 text-gold-light border-gold/50 text-xs">
+                      <Sparkles className="h-3 w-3 mr-1" />
+                      {character.originFeat}
+                    </Badge>
+                  )}
+                </div>
+              </div>
             </div>
-            <span className={`font-mono font-bold text-sm ${hpColorText(character.currentHp, character.maxHp)}`}>
-              {character.currentHp} / {character.maxHp}
-              {character.tempHp > 0 && <span className="text-blue-400 ml-1">(+{character.tempHp})</span>}
-            </span>
+            
+            {/* Level Badge */}
+            <div className="flex flex-col items-center">
+              <div className="w-14 h-14 rounded-xl bg-gold/20 border-2 border-gold/50 flex items-center justify-center">
+                <span className="font-cinzel font-bold text-xl text-gold-light">{character.level}</span>
+              </div>
+              <span className="text-[10px] text-parchment/50 mt-1 uppercase tracking-wider">Level</span>
+            </div>
           </div>
-          <Progress value={hpPct} indicatorClassName={hpColor(character.currentHp, character.maxHp)} className="h-3 bg-forest-mid/20" />
-        </div>
 
-        {/* HP Controls */}
-        <div className="flex gap-2 mt-3">
-          <input
-            type="number"
-            min={0}
-            value={hpDelta}
-            onChange={(e) => setHpDelta(e.target.value)}
-            placeholder="jumlah"
-            className="flex-1 h-9 text-center font-mono text-sm rounded-md border border-forest-mid/40 bg-forest-mid/20 text-parchment placeholder:text-parchment/30 focus:outline-none focus:ring-1 focus:ring-gold"
-          />
-          <Button size="sm" variant="gold" onClick={() => applyHpChange(1)}>
-            <Plus className="h-3.5 w-3.5" /> Heal
-          </Button>
-          <Button size="sm" variant="destructive" onClick={() => applyHpChange(-1)}>
-            <Minus className="h-3.5 w-3.5" /> Damage
-          </Button>
-        </div>
+          {/* HP Section */}
+          <div className="bg-black/20 rounded-xl p-4 backdrop-blur-sm">
+            <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-lg bg-crimson/20 flex items-center justify-center">
+                  <Heart className="h-4 w-4 text-crimson" />
+                </div>
+                <span className="text-parchment/70 text-sm font-medium">Hit Points</span>
+              </div>
+              <span className={`font-mono font-bold text-lg ${hpColorText(character.currentHp, character.maxHp)}`}>
+                {character.currentHp} / {character.maxHp}
+                {character.tempHp > 0 && (
+                  <span className="text-blue-400 text-sm ml-2">+{character.tempHp} temp</span>
+                )}
+              </span>
+            </div>
+            <Progress 
+              value={hpPct} 
+              indicatorClassName={hpColor(character.currentHp, character.maxHp)} 
+              className="h-2.5 bg-forest-mid/30 rounded-full" 
+            />
+            
+            {/* HP Controls */}
+            <div className="flex gap-2 mt-4">
+              <input
+                type="number"
+                min={0}
+                value={hpDelta}
+                onChange={(e) => setHpDelta(e.target.value)}
+                placeholder="Amount"
+                className="flex-1 h-10 text-center font-mono text-base rounded-lg border border-forest-mid/50 bg-forest-deep/50 text-parchment placeholder:text-parchment/30 focus:outline-none focus:ring-2 focus:ring-gold/50"
+              />
+              <Button 
+                size="default" 
+                onClick={() => applyHpChange(1)}
+                className="bg-green-600 hover:bg-green-700 text-white px-4"
+              >
+                <Plus className="h-4 w-4 mr-1" /> Heal
+              </Button>
+              <Button 
+                size="default" 
+                variant="destructive" 
+                onClick={() => applyHpChange(-1)}
+                className="px-4"
+              >
+                <Minus className="h-4 w-4 mr-1" /> Damage
+              </Button>
+            </div>
+          </div>
 
-        {/* Quick Stats Row */}
-        <div className="grid grid-cols-3 gap-2 mt-3">
-          <StatPill icon={<Shield className="h-3 w-3" />} label="AC" value={character.armorClass} />
-          <StatPill icon={<Zap className="h-3 w-3" />} label="Init" value={formatModifier(character.initiative)} />
-          <StatPill label="Speed" value={`${character.speed}ft`} />
+          {/* Stats Grid */}
+          <div className="grid grid-cols-4 gap-3 mt-4">
+            <StatBox icon={<Shield className="h-4 w-4" />} label="AC" value={character.armorClass} />
+            <StatBox icon={<Zap className="h-4 w-4" />} label="Initiative" value={formatModifier(character.initiative)} />
+            <StatBox icon={<span className="text-sm font-bold">SPD</span>} label="Speed" value={`${character.speed}ft`} />
+            <StatBox 
+              icon={<Dices className="h-4 w-4" />} 
+              label="Hit Dice" 
+              value={character.hitDice ? `${character.hitDice.available}/${character.hitDice.total}` : '-'} 
+            />
+          </div>
+
+          {/* Action Buttons */}
+          <div className="flex gap-2 mt-4">
+            {canLevelUp(character) && (
+              <Button
+                onClick={() => setShowLevelUp(true)}
+                className="flex-1 bg-gold hover:bg-gold-light text-midnight font-semibold shadow-lg shadow-gold/20"
+              >
+                <ChevronUp className="h-5 w-5 mr-2" />
+                Level Up Available!
+              </Button>
+            )}
+            <Button
+              variant="outline"
+              onClick={() => setShowShortRest(true)}
+              className="flex-1 border-forest-light/30 text-parchment hover:bg-forest-mid/50"
+            >
+              <Dices className="h-4 w-4 mr-2" />
+              Short Rest
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => setShowLongRest(true)}
+              className="flex-1 border-forest-light/30 text-parchment hover:bg-forest-mid/50"
+            >
+              <Sun className="h-4 w-4 mr-2" />
+              Long Rest
+            </Button>
+          </div>
         </div>
       </div>
 
@@ -452,13 +550,92 @@ export function CharacterSheetPage() {
             </CardContent>
           </Card>
 
-          {(character.traits || character.ideals || character.bonds || character.flaws) && (
+          {/* Proficiencies */}
+          <Card className="mt-3">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-xs">Proficiencies & Languages</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3 text-sm">
+              {(character.weaponProficiencies?.length ?? 0) > 0 && (
+                <div>
+                  <p className="text-[10px] uppercase text-forest-light/60 dark:text-parchment/40 mb-1">Weapons</p>
+                  <p className="text-forest-deep dark:text-parchment">{character.weaponProficiencies?.join(', ')}</p>
+                </div>
+              )}
+              {(character.armorProficiencies?.length ?? 0) > 0 && (
+                <div>
+                  <p className="text-[10px] uppercase text-forest-light/60 dark:text-parchment/40 mb-1">Armor</p>
+                  <p className="text-forest-deep dark:text-parchment">{character.armorProficiencies?.join(', ')}</p>
+                </div>
+              )}
+              {(character.toolProficiencies?.length ?? 0) > 0 && (
+                <div>
+                  <p className="text-[10px] uppercase text-forest-light/60 dark:text-parchment/40 mb-1">Tools</p>
+                  <p className="text-forest-deep dark:text-parchment">{character.toolProficiencies?.join(', ')}</p>
+                </div>
+              )}
+              {(character.languages?.length ?? 0) > 0 && (
+                <div>
+                  <p className="text-[10px] uppercase text-forest-light/60 dark:text-parchment/40 mb-1">Languages</p>
+                  <p className="text-forest-deep dark:text-parchment">{character.languages?.join(', ')}</p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Character Traits Section */}
+          <Card className="mt-3">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-xs flex items-center gap-2">
+                <Sparkles className="h-3 w-3 text-gold" />
+                Traits Karakter
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {/* Race Traits */}
+              <div className="p-3 bg-forest-deep/5 dark:bg-forest-deep/20 rounded-lg border-l-4 border-forest-deep">
+                <p className="text-xs font-bold text-forest-deep dark:text-gold-light mb-1">
+                  🧬 RAS: {character.race.toUpperCase()}
+                </p>
+                <p className="text-sm text-forest-mid dark:text-parchment/80">
+                  {getRace2024(character.race)?.traits || 'No racial traits available'}
+                </p>
+              </div>
+              
+              {/* Class Traits */}
+              <div className="p-3 bg-forest-deep/5 dark:bg-forest-deep/20 rounded-lg border-l-4 border-forest-mid">
+                <p className="text-xs font-bold text-forest-deep dark:text-gold-light mb-1">
+                  ⚔️ KELAS: {character.class.toUpperCase()}
+                </p>
+                <p className="text-sm text-forest-mid dark:text-parchment/80">
+                  {getClass2024(character.class)?.summary || 'No class features available'}
+                </p>
+              </div>
+              
+              {/* Background Traits */}
+              {character.backgroundId && getBackground2024(character.backgroundId) && (
+                <div className="p-3 bg-gold/10 dark:bg-gold/20 rounded-lg border-l-4 border-gold">
+                  <p className="text-xs font-bold text-forest-deep dark:text-gold-light mb-1">
+                    📜 BACKGROUND: {getBackground2024(character.backgroundId)?.name.toUpperCase()}
+                  </p>
+                  <p className="text-sm text-forest-mid dark:text-parchment/80 mb-2">
+                    {getBackground2024(character.backgroundId)?.traitSummary}
+                  </p>
+                  <p className="text-sm">
+                    <span className="font-semibold text-gold">★ Origin Feat:</span>{' '}
+                    <span className="text-forest-deep dark:text-parchment">{character.originFeat}</span>
+                  </p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {(character.ideals || character.bonds || character.flaws) && (
             <Card className="mt-3">
               <CardHeader className="pb-2">
-                <CardTitle className="text-xs">Kepribadian</CardTitle>
+                <CardTitle className="text-xs">Kepribadian (Personality)</CardTitle>
               </CardHeader>
               <CardContent className="space-y-2">
-                {character.traits && <PersonalityRow label="Traits" value={character.traits} />}
                 {character.ideals && <PersonalityRow label="Ideals" value={character.ideals} />}
                 {character.bonds && <PersonalityRow label="Bonds" value={character.bonds} />}
                 {character.flaws && <PersonalityRow label="Flaws" value={character.flaws} />}
@@ -820,16 +997,113 @@ export function CharacterSheetPage() {
           </p>
         </TabsContent>
       </Tabs>
+
+      {/* Level Up Dialog */}
+      <LevelUpDialog
+        open={showLevelUp}
+        onClose={() => setShowLevelUp(false)}
+        character={character}
+        onLevelUp={(options) => {
+          levelUp(character.id, options)
+          setShowLevelUp(false)
+        }}
+      />
+
+      {/* Short Rest Dialog */}
+      <Dialog open={showShortRest} onOpenChange={setShowShortRest}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Short Rest</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <p className="text-sm text-forest-light">
+              Spend Hit Dice to regain HP. You have {character.hitDice?.available || 0}d{character.hitDice?.type || 8} available.
+            </p>
+            <div className="flex items-center gap-4">
+              <label className="text-sm">Hit Dice to spend:</label>
+              <input
+                type="number"
+                min={1}
+                max={character.hitDice?.available || 1}
+                value={hitDiceToSpend}
+                onChange={(e) => setHitDiceToSpend(Math.max(1, Math.min(character.hitDice?.available || 1, parseInt(e.target.value) || 1)))}
+                className="w-20 text-center border rounded px-2 py-1"
+              />
+            </div>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                onClick={() => setShowShortRest(false)}
+                className="flex-1"
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={() => {
+                  const result = shortRest(character.id, hitDiceToSpend)
+                  toast.success(`Short rest complete! Regained ${result.healed} HP`)
+                  setShowShortRest(false)
+                  setHitDiceToSpend(1)
+                }}
+                disabled={!character.hitDice?.available}
+                className="flex-1"
+              >
+                Rest
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Long Rest Dialog */}
+      <Dialog open={showLongRest} onOpenChange={setShowLongRest}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Long Rest</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <p className="text-sm text-forest-light">
+              A long rest restores all HP, regains half of your Hit Dice (minimum 1), reduces exhaustion by 1, and resets death saves.
+            </p>
+            <div className="bg-forest-deep/5 p-3 rounded text-sm space-y-1">
+              <p>✓ Full HP recovery</p>
+              <p>✓ Regain {Math.max(1, Math.floor((character.hitDice?.total || 1) / 2))} Hit Dice</p>
+              <p>✓ Reduce exhaustion by 1</p>
+              <p>✓ Reset death saves</p>
+            </div>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                onClick={() => setShowLongRest(false)}
+                className="flex-1"
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={() => {
+                  longRest(character.id)
+                  toast.success('Long rest complete! You feel refreshed.')
+                  setShowLongRest(false)
+                }}
+                className="flex-1 bg-gold text-midnight hover:bg-gold/90"
+              >
+                <Sun className="h-4 w-4 mr-1" />
+                Rest
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
 
-function StatPill({ icon, label, value }: { icon?: React.ReactNode; label: string; value: string | number }) {
+function StatBox({ icon, label, value }: { icon?: React.ReactNode; label: string; value: string | number }) {
   return (
-    <div className="flex flex-col items-center p-2 rounded-lg bg-forest-mid/20 dark:bg-forest-mid/30">
-      {icon && <span className="text-parchment/60 mb-0.5">{icon}</span>}
-      <span className="font-mono font-bold text-parchment text-sm">{value}</span>
-      <span className="text-parchment/40 text-[9px] uppercase tracking-wider">{label}</span>
+    <div className="flex flex-col items-center p-3 rounded-xl bg-forest-deep/40 border border-forest-light/20 backdrop-blur-sm">
+      {icon && <span className="text-gold-light/80 mb-1">{icon}</span>}
+      <span className="font-mono font-bold text-parchment text-lg">{value}</span>
+      <span className="text-parchment/50 text-[10px] uppercase tracking-wider">{label}</span>
     </div>
   )
 }

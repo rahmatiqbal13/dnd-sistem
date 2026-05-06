@@ -22,7 +22,7 @@ export function AppShell() {
   }, [themeId])
 
   return (
-    <div className="min-h-screen bg-parchment dark:bg-midnight flex flex-col">
+    <div className="min-h-screen bg-parchment dark:bg-midnight flex flex-col transition-colors duration-300">
       <Navbar />
       <Sidebar />
       <main
