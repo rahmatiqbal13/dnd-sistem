@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
@@ -16,7 +16,6 @@ interface FeatSelectorProps {
 
 export function FeatSelector({ feats, selectedId, onSelect }: FeatSelectorProps) {
   const [search, setSearch] = useState('')
-  const [selectedFeat, setSelectedFeat] = useState<Feat2024 | null>(null)
   
   const filteredFeats = useMemo(() => {
     if (!search) return feats

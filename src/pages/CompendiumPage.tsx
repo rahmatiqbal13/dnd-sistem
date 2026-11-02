@@ -1,4 +1,4 @@
-import { useState, useMemo, useDeferredValue, useEffect } from 'react'
+import { useState, useMemo, useDeferredValue } from 'react'
 import { Search, X, ChevronRight, Sword, Sparkles, Activity, GraduationCap, Shield } from 'lucide-react'
 import { COMPENDIUM_DATA } from '@/data/compendium'
 import { Input } from '@/components/ui/input'
@@ -105,12 +105,13 @@ export function CompendiumPage() {
 
   const deferredSearch = useDeferredValue(search)
 
-  useEffect(() => {
+  const selectCategory = (value: CompendiumCategory | 'all') => {
+    setCategory(value)
     setSpellClass('all')
     setSpellLevel('all')
     setMonsterType('all')
     setEquipCat('all')
-  }, [category])
+  }
 
   const filtered = useMemo(() => {
     return COMPENDIUM_DATA.filter((entry) => {
@@ -140,9 +141,13 @@ export function CompendiumPage() {
     })
   }, [deferredSearch, category, spellClass, spellLevel, monsterType, equipCat])
 
-  useEffect(() => {
+  // Reset paging whenever the filters change
+  const filterKey = [deferredSearch, category, spellClass, spellLevel, monsterType, equipCat].join('|')
+  const [prevFilterKey, setPrevFilterKey] = useState(filterKey)
+  if (prevFilterKey !== filterKey) {
+    setPrevFilterKey(filterKey)
     setVisibleCount(LIST_BATCH)
-  }, [deferredSearch, category, spellClass, spellLevel, monsterType, equipCat])
+  }
 
   const visible = useMemo(() => filtered.slice(0, visibleCount), [filtered, visibleCount])
   const hasMore = filtered.length > visible.length
@@ -245,7 +250,7 @@ export function CompendiumPage() {
         {CATEGORIES.map(({ value, label, icon }) => (
           <button
             key={value}
-            onClick={() => setCategory(value)}
+            onClick={() => selectCategory(value)}
             className={cn(
               'flex items-center gap-1 whitespace-nowrap px-3 py-1.5 rounded-full text-xs font-medium transition-all border',
               category === value

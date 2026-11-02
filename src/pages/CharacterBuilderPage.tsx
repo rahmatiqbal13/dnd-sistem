@@ -15,11 +15,12 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Textarea } from '@/components/ui/textarea'
 import { Switch } from '@/components/ui/switch'
 import { rollAbilityScore } from '@/lib/dice'
+import { isASILevel } from '@/lib/levelUp'
 import { formatModifier, abilityModifier, ABILITY_LABELS, proficiencyBonus } from '@/lib/utils'
 import { BACKGROUNDS_2024, getBackground2024 } from '@/data/dnd2024/backgrounds'
 import { getClass2024 } from '@/data/dnd2024/classes'
 import { getRace2024, getRaceFeatures, getRaceLanguages, getRaceSpeed } from '@/data/dnd2024/races'
-import { getStartingEquipment, getDefaultArmorForClass, getDefaultShieldForClass, getDefaultGoldForClass } from '@/data/dnd2024/equipment'
+import { getStartingEquipment, getDefaultGoldForClass } from '@/data/dnd2024/equipment'
 import {
   applyBackgroundAsi,
   computeMaxHp,
@@ -75,8 +76,6 @@ const schema = z.object({
 type FormValues = z.infer<typeof schema>
 
 const ABILITIES: Ability[] = ['str', 'dex', 'con', 'int', 'wis', 'cha']
-
-const ASI_LEVELS = new Set([4, 8, 12, 16, 19])
 
 export function CharacterBuilderPage() {
   const navigate = useNavigate()
@@ -431,7 +430,7 @@ export function CharacterBuilderPage() {
           </Card>
         )}
 
-        {ASI_LEVELS.has(level) && (
+        {clsName && isASILevel(clsName, level) && (
           <Card className="border-gold/30 bg-gold/5">
             <CardContent className="py-3 text-[11px] text-forest-deep dark:text-parchment/80">
               <strong>Level {level}:</strong> biasanya ASI atau Feat — sesuaikan skor secara manual atau catat di Notes setelah karakter dibuat.

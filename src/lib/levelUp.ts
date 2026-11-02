@@ -4,8 +4,17 @@ import { getSubclassesByClass, getSubclassLevel } from '@/data/dnd2024/subclasse
 import { ALL_FEATS, type Feat2024 } from '@/data/dnd2024/feats'
 import { abilityModifier } from '@/lib/utils'
 
-// ASI (Ability Score Improvement) levels in D&D 5e 2024
+// ASI (Ability Score Improvement) levels in D&D 5e 2024.
+// Level 19 is the Epic Boon feat for every class; Fighter and Rogue get extra ASIs.
 export const ASI_LEVELS = [4, 8, 12, 16, 19]
+const EXTRA_ASI_LEVELS: Partial<Record<CharacterClass, number[]>> = {
+  Fighter: [6, 14],
+  Rogue: [10],
+}
+
+export function getASILevels(characterClass: CharacterClass): number[] {
+  return [...ASI_LEVELS, ...(EXTRA_ASI_LEVELS[characterClass] ?? [])].sort((a, b) => a - b)
+}
 
 // Maximum character level
 export const MAX_LEVEL = 20
@@ -51,7 +60,7 @@ export function getLevelUpRequirements(character: Character): LevelUpRequirement
     nextLevel,
     isMaxLevel,
     requiresSubclassSelection: nextLevel === subclassLevel && !character.selectedSubclass,
-    requiresASIOrFeat: ASI_LEVELS.includes(nextLevel),
+    requiresASIOrFeat: isASILevel(character.class, nextLevel),
     subclassLevel,
   }
 }
@@ -59,8 +68,8 @@ export function getLevelUpRequirements(character: Character): LevelUpRequirement
 /**
  * Check if a level is an ASI (Ability Score Improvement) level
  */
-export function isASILevel(level: number): boolean {
-  return ASI_LEVELS.includes(level)
+export function isASILevel(characterClass: CharacterClass, level: number): boolean {
+  return getASILevels(characterClass).includes(level)
 }
 
 /**
@@ -360,19 +369,4 @@ export function getRecommendedHpIncrease(character: Character): number {
   const hitDie = cls?.hitDie ?? 8
   const conMod = abilityModifier(character.abilityScores.con)
   return calculateAverageHpIncrease(hitDie, conMod)
-}
-
-/**
- * Get new spell slots on level up (for spellcasters)
- */
-export function getNewSpellSlots(
-  character: Character,
-  newLevel: number
-): Record<number, { max: number; used: number }> | undefined {
-  const cls = getClass2024(character.class)
-  if (!cls || cls.casterType === 'none') return undefined
-  
-  // This would need to be implemented with actual spell slot tables
-  // For now, return undefined to indicate no change needed
-  return undefined
 }

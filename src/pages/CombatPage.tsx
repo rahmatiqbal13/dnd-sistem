@@ -11,7 +11,6 @@ import {
   Shield,
   Heart,
   Zap,
-  Users,
   Skull,
   Target,
   RotateCcw,

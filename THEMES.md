@@ -200,4 +200,4 @@ Sistem ini memiliki 18 tema warna yang dapat dipilih untuk menyesuaikan tampilan
 
 **Total Tema Tersedia: 18 tema** 🎨
 
-*Semua tema dirancang dengan kontras yang baik untuk readability dan estetika D&D yang autentik.*
+*Catatan kontras: teks di atas tombol emas dipilih otomatis agar memenuhi WCAG AA (4.5:1) di semua tema. Warna `forest-light` sebagai teks sekunder masih di bawah 4.5:1 di beberapa tema dan perlu diperbaiki.*

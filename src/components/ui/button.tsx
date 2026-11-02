@@ -12,7 +12,7 @@ const buttonVariants = cva(
         destructive: 'bg-crimson text-white hover:bg-red-800 shadow-sm',
         outline: 'border border-forest-deep text-forest-deep bg-transparent hover:bg-forest-deep hover:text-parchment',
         ghost: 'text-forest-deep hover:bg-forest-deep/10',
-        gold: 'bg-gold text-white hover:bg-amber-600 shadow-sm',
+        gold: 'bg-gold text-on-gold hover:bg-gold/90 shadow-sm',
         secondary: 'bg-forest-light/20 text-forest-deep hover:bg-forest-light/30',
         link: 'text-forest-mid underline-offset-4 hover:underline',
       },
@@ -42,4 +42,4 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
 )
 Button.displayName = 'Button'
 
-export { Button, buttonVariants }
+export { Button }

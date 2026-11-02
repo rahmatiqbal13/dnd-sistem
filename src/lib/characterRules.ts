@@ -1,8 +1,7 @@
 import type { AbilityScores, Character, CharacterClass, CharacterRace, Spell, SpellSlotsState } from '@/types'
-import { abilityModifier } from '@/lib/utils'
 import { getClass2024 } from '@/data/dnd2024/classes'
 import { getRace2024 } from '@/data/dnd2024/races'
-import { getBackground2024, type Background2024 } from '@/data/dnd2024/backgrounds'
+import { type Background2024 } from '@/data/dnd2024/backgrounds'
 import { getDefaultSpellSlots, type CasterProgression } from '@/lib/spellcasting'
 
 export function applyBackgroundAsi(base: AbilityScores, bg: Background2024 | undefined): AbilityScores {
@@ -37,22 +36,26 @@ export type ArmorPreset =
 
 export function computeArmorClass(preset: ArmorPreset, dexMod: number, shield: boolean): number {
   const dex = (max: number) => Math.min(max, dexMod)
-  let ac = 10 + dexMod
+  let ac: number
   switch (preset) {
     case 'none':
       ac = 10 + dexMod
       break
     case 'leather':
-    case 'hide':
       ac = 11 + dexMod
       break
     case 'studded':
-    case 'scale':
       ac = 12 + dexMod
       break
-    case 'breastplate':
+    case 'hide':
+      ac = 12 + dex(2)
+      break
     case 'chain-shirt':
       ac = 13 + dex(2)
+      break
+    case 'scale':
+    case 'breastplate':
+      ac = 14 + dex(2)
       break
     case 'half-plate':
       ac = 15 + dex(2)
@@ -71,6 +74,15 @@ export function computeArmorClass(preset: ArmorPreset, dexMod: number, shield: b
   }
   if (shield) ac += 2
   return ac
+}
+
+/** Mark every expended spell slot as available again. */
+export function restoreSpellSlots(slots: SpellSlotsState): SpellSlotsState {
+  const out: SpellSlotsState = {}
+  for (const [tier, slot] of Object.entries(slots)) {
+    if (slot) out[Number(tier)] = { ...slot, used: 0 }
+  }
+  return out
 }
 
 export function defaultSpeed(race: CharacterRace): number {

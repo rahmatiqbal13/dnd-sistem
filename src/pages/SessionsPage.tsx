@@ -11,6 +11,17 @@ import type { CampaignSession } from '@/types'
 
 const emptyForm = { title: '', date: '', summary: '', xpAwarded: '' }
 
+function createSession(form: typeof emptyForm): CampaignSession {
+  return {
+    id: crypto.randomUUID(),
+    title: form.title.trim(),
+    date: form.date || new Date().toISOString().slice(0, 10),
+    summary: form.summary.trim(),
+    xpAwarded: parseInt(form.xpAwarded) || 0,
+    createdAt: Date.now(),
+  }
+}
+
 export function SessionsPage() {
   const { role } = useAppStore()
   const { campaigns, activeCampaignId, addSession, removeSession } = useCampaignStore()
@@ -24,14 +35,7 @@ export function SessionsPage() {
   const handleAdd = () => {
     if (!campaign) { toast.error('Pilih kampanye terlebih dahulu'); return }
     if (!form.title.trim()) { toast.error('Judul sesi wajib diisi'); return }
-    const session: CampaignSession = {
-      id: crypto.randomUUID(),
-      title: form.title.trim(),
-      date: form.date || new Date().toISOString().slice(0, 10),
-      summary: form.summary.trim(),
-      xpAwarded: parseInt(form.xpAwarded) || 0,
-      createdAt: Date.now(),
-    }
+    const session = createSession(form)
     addSession(campaign.id, session)
     toast.success(`Sesi "${session.title}" ditambahkan`)
     setForm(emptyForm)

@@ -12,7 +12,7 @@ const badgeVariants = cva(
         player: 'bg-forest-deep/10 text-forest-deep border border-forest-deep/20',
         destructive: 'bg-crimson/10 text-crimson border border-crimson/20',
         outline: 'border border-forest-deep/30 text-forest-deep',
-        gold: 'bg-gold text-white',
+        gold: 'bg-gold text-on-gold',
         status: 'bg-amber-100 text-amber-800 border border-amber-300 dark:bg-amber-900/30 dark:text-amber-300',
       },
     },
@@ -28,4 +28,4 @@ function Badge({ className, variant, ...props }: BadgeProps) {
   return <div className={cn(badgeVariants({ variant }), className)} {...props} />
 }
 
-export { Badge, badgeVariants }
+export { Badge }

@@ -2,7 +2,6 @@ import { useNavigate } from 'react-router-dom'
 import { 
   Plus, 
   Swords, 
-  BookOpen, 
   Dice6, 
   Users, 
   Map, 

@@ -23,7 +23,7 @@ interface CombatStore {
   updateNotes: (id: string, notes: string) => void
 }
 
-export const useCombatStore = create<CombatStore>()((set, get) => ({
+export const useCombatStore = create<CombatStore>()((set) => ({
   combatants: [],
   currentTurnIndex: 0,
   round: 1,

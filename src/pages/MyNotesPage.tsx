@@ -1,5 +1,5 @@
 import { FileText, Save } from 'lucide-react'
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { useAppStore } from '@/store/appStore'
 import { useCampaignStore } from '@/store/campaignStore'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -13,11 +13,16 @@ export function MyNotesPage() {
 
   const campaign = campaigns.find((c) => c.id === activeCampaignId)
   const campaignId = campaign?.id ?? '__global__'
-  const [draft, setDraft] = useState(personalNotes[campaignId] ?? '')
+  const savedNote = personalNotes[campaignId] ?? ''
+  const [draft, setDraft] = useState(savedNote)
 
-  useEffect(() => {
-    setDraft(personalNotes[campaignId] ?? '')
-  }, [campaignId, personalNotes])
+  // Reload the draft when the campaign or its saved note changes
+  const noteKey = `${campaignId}\u0000${savedNote}`
+  const [prevNoteKey, setPrevNoteKey] = useState(noteKey)
+  if (prevNoteKey !== noteKey) {
+    setPrevNoteKey(noteKey)
+    setDraft(savedNote)
+  }
 
   const handleSave = () => {
     setPersonalNote(campaignId, draft)

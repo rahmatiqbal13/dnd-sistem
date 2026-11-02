@@ -72,7 +72,6 @@ export function OnboardingPage() {
             <Label>Pilih Peran</Label>
             <div className="grid grid-cols-2 gap-3">
               <RoleCard
-                role="dm"
                 icon={<Wand2 className="h-6 w-6" />}
                 title="Dungeon Master"
                 description="Buat & kelola kampanye"
@@ -80,7 +79,6 @@ export function OnboardingPage() {
                 onClick={() => setSelectedRole('dm')}
               />
               <RoleCard
-                role="player"
                 icon={<Shield className="h-6 w-6" />}
                 title="Player"
                 description="Bergabung & bertualang"
@@ -111,9 +109,9 @@ export function OnboardingPage() {
 }
 
 function RoleCard({
-  role, icon, title, description, selected, onClick,
+  icon, title, description, selected, onClick,
 }: {
-  role: Role; icon: React.ReactNode; title: string; description: string
+  icon: React.ReactNode; title: string; description: string
   selected: boolean; onClick: () => void
 }) {
   return (

@@ -12,6 +12,8 @@
   --color-crimson: #a02424;
   --color-parchment: #fdf6e3;
   --color-midnight: #131d14;
+  /* Text on solid gold; recomputed per theme in applyTheme() */
+  --color-on-gold: #1a1a1a;
 
   /* Fonts */
   --font-cinzel: 'Cinzel', Georgia, serif;

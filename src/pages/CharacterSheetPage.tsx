@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import {
   ChevronLeft, Heart, Minus, Plus, Shield, Zap, Coins,
   Sword, Package, Trash2, Wand2, Search, X, ChevronUp,
-  Dices, Moon, Sun, Sparkles,
+  Dices, Sun, Sparkles,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { useCharacterStore } from '@/store/characterStore'
@@ -21,7 +21,7 @@ import {
 } from '@/components/ui/dialog'
 import {
   abilityModifier, formatModifier, hpColor, hpColorText,
-  ABILITY_LABELS, ABILITY_FULL, SKILLS_LIST,
+  ABILITY_LABELS, SKILLS_LIST,
 } from '@/lib/utils'
 import { resolveSpellSlots } from '@/lib/characterRules'
 import { getClass2024 } from '@/data/dnd2024/classes'
@@ -29,7 +29,7 @@ import { getRace2024 } from '@/data/dnd2024/races'
 import { getBackground2024 } from '@/data/dnd2024/backgrounds'
 import { COMPENDIUM_DATA } from '@/data/compendium'
 import { LevelUpDialog } from '@/components/character/LevelUpDialog'
-import { canLevelUp, getLevelUpRequirements } from '@/lib/levelUp'
+import { canLevelUp } from '@/lib/levelUp'
 import type { Ability, EquipmentItem, CompendiumEntry } from '@/types'
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -933,7 +933,7 @@ export function CharacterSheetPage() {
                       })}
                       className={`w-5 h-5 rounded border-2 flex items-center justify-center flex-shrink-0 transition-colors ${
                         item.equipped
-                          ? 'bg-forest-deep border-forest-deep dark:bg-gold dark:border-gold text-parchment'
+                          ? 'bg-forest-deep border-forest-deep dark:bg-gold dark:border-gold text-parchment dark:text-on-gold'
                           : 'border-forest-deep/30 dark:border-forest-mid/40'
                       }`}
                       title={item.equipped ? 'Unequip' : 'Equip'}

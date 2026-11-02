@@ -3,6 +3,7 @@ import { persist } from 'zustand/middleware'
 import type { Character, AbilityScores, Spell, EquipmentItem, CharacterFeat, SelectedSubclass, DeathSaves } from '@/types'
 import { getClass2024 } from '@/data/dnd2024/classes'
 import { proficiencyBonus } from '@/lib/utils'
+import { restoreSpellSlots } from '@/lib/characterRules'
 
 const defaultAbilities: AbilityScores = { str: 10, dex: 10, con: 10, int: 10, wis: 10, cha: 10 }
 
@@ -212,6 +213,11 @@ export const useCharacterStore = create<CharacterStore>()(
                   ...c,
                   hitDice: { ...c.hitDice!, available: c.hitDice!.available - diceToRoll },
                   currentHp: Math.min(c.maxHp, c.currentHp + totalHealed),
+                  // Warlock Pact Magic slots return on a Short Rest
+                  spellSlots:
+                    c.spellSlots && getClass2024(c.class)?.casterType === 'pact'
+                      ? restoreSpellSlots(c.spellSlots)
+                      : c.spellSlots,
                 }
               : c
           ),
@@ -228,9 +234,11 @@ export const useCharacterStore = create<CharacterStore>()(
             // Regain all hit points
             const newHp = c.maxHp
             
-            // Regain half of total hit dice (minimum 1)
-            const hitDiceToRegain = Math.max(1, Math.floor(c.hitDice.total / 2))
-            const newAvailableHitDice = Math.min(c.hitDice.total, c.hitDice.available + hitDiceToRegain)
+            // Regain all spent hit dice (2024 rules)
+            const newAvailableHitDice = c.hitDice.total
+
+            // Regain all expended spell slots
+            const newSpellSlots = c.spellSlots && restoreSpellSlots(c.spellSlots)
             
             // Reduce exhaustion by 1 if > 0
             const newExhaustion = Math.max(0, (c.exhaustionLevel ?? 0) - 1) as 0 | 1 | 2 | 3 | 4 | 5 | 6
@@ -243,6 +251,7 @@ export const useCharacterStore = create<CharacterStore>()(
               currentHp: newHp,
               tempHp: 0,
               hitDice: { ...c.hitDice, available: newAvailableHitDice },
+              spellSlots: newSpellSlots,
               exhaustionLevel: newExhaustion,
               deathSaves: newDeathSaves,
             }
