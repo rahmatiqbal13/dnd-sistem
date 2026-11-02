@@ -44,6 +44,7 @@ export interface Database {
 
       campaigns: {
         Row: {
+          dm_id: string | null
           id: string
           name: string
           description: string
@@ -55,6 +56,7 @@ export interface Database {
           updated_at: string
         }
         Insert: {
+          dm_id?: string | null
           id?: string
           name: string
           description?: string
@@ -66,6 +68,7 @@ export interface Database {
           updated_at?: string
         }
         Update: {
+          dm_id?: string | null
           id?: string
           name?: string
           description?: string
@@ -80,6 +83,7 @@ export interface Database {
 
       characters: {
         Row: {
+          user_id: string | null
           id: string
           owner_id: string
           campaign_id: string | null
@@ -111,8 +115,9 @@ export interface Database {
           updated_at: string
         }
         Insert: {
+          user_id?: string | null
           id?: string
-          owner_id: string
+          owner_id?: string
           campaign_id?: string | null
           name: string
           class: string
@@ -142,6 +147,7 @@ export interface Database {
           updated_at?: string
         }
         Update: {
+          user_id?: string | null
           id?: string
           owner_id?: string
           campaign_id?: string | null
@@ -176,6 +182,7 @@ export interface Database {
 
       campaign_members: {
         Row: {
+          user_id: string | null
           id: string
           campaign_id: string
           nickname: string
@@ -184,6 +191,7 @@ export interface Database {
           joined_at: string
         }
         Insert: {
+          user_id?: string | null
           id?: string
           campaign_id: string
           nickname: string
@@ -192,6 +200,7 @@ export interface Database {
           joined_at?: string
         }
         Update: {
+          user_id?: string | null
           id?: string
           campaign_id?: string
           nickname?: string
@@ -264,6 +273,7 @@ export interface Database {
 
       personal_notes: {
         Row: {
+          user_id: string | null
           id: string
           nickname: string
           campaign_id: string
@@ -271,6 +281,7 @@ export interface Database {
           updated_at: string
         }
         Insert: {
+          user_id?: string | null
           id?: string
           nickname: string
           campaign_id: string
@@ -278,6 +289,7 @@ export interface Database {
           updated_at?: string
         }
         Update: {
+          user_id?: string | null
           id?: string
           nickname?: string
           campaign_id?: string
@@ -289,6 +301,7 @@ export interface Database {
 
       dice_rolls: {
         Row: {
+          user_id: string | null
           id: string
           rolled_by: string
           dice: number
@@ -301,8 +314,9 @@ export interface Database {
           rolled_at: string
         }
         Insert: {
+          user_id?: string | null
           id?: string
-          rolled_by: string
+          rolled_by?: string
           dice: number
           count?: number
           modifier?: number
@@ -313,6 +327,7 @@ export interface Database {
           rolled_at?: string
         }
         Update: {
+          user_id?: string | null
           id?: string
           rolled_by?: string
           dice?: number
@@ -329,7 +344,12 @@ export interface Database {
     }
 
     Views: Record<string, never>
-    Functions: Record<string, never>
+    Functions: {
+      join_campaign: {
+        Args: { p_invite_code: string; p_nickname: string }
+        Returns: string | null
+      }
+    }
     Enums: Record<string, never>
   }
 }

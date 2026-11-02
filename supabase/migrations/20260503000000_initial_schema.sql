@@ -221,7 +221,7 @@ create policy "open_personal_notes"    on personal_notes    for all to anon, aut
 create policy "open_dice_rolls"        on dice_rolls        for all to anon, authenticated using (true) with check (true);
 
 -- =============================================================================
--- PHASE 2 POLICIES — uncomment when Supabase Auth is wired up
+-- PHASE 2 POLICIES — superseded by 20261102000000_secure_rls.sql; kept for history only
 -- =============================================================================
 /*
 

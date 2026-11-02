@@ -1,14 +1,13 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
-import type { Campaign, CampaignMember, CampaignNpc, CampaignSession, Role } from '@/types'
+import type { Campaign, CampaignNpc, CampaignSession, Role } from '@/types'
 import {
-  fetchCampaignByInviteCode,
   generateInviteCode,
-  hydrateCampaignById,
   insertCampaignOnRemote,
-  insertMemberOnRemote,
+  joinCampaignOnRemote,
   normalizeInviteCode,
 } from '@/lib/campaignRemote'
+import { isSupabaseConfigured } from '@/lib/supabase'
 
 interface CampaignStore {
   campaigns: Campaign[]
@@ -75,48 +74,26 @@ export const useCampaignStore = create<CampaignStore>()(
 
       joinCampaign: async (inviteCode, nickname, role) => {
         const code = normalizeInviteCode(inviteCode)
-        let campaign: Campaign | null =
-          get().campaigns.find((c) => c.inviteCode === code && c.isActive) ?? null
-        const fromRemote = !campaign
-        if (!campaign) {
-          campaign = await fetchCampaignByInviteCode(code)
+
+        if (isSupabaseConfigured) {
+          const remote = await joinCampaignOnRemote(code, nickname)
+          if (!remote) return null
+          set((s) => ({
+            campaigns: upsertCampaign(s.campaigns, remote),
+            activeCampaignId: remote.id,
+          }))
+          return remote
         }
+
+        // Local-only mode (no Supabase env): campaigns exist only in this browser
+        const campaign = get().campaigns.find((c) => c.inviteCode === code && c.isActive)
         if (!campaign) return null
-
-        const alreadyIn = campaign.members.some((m) => m.nickname === nickname)
-        if (alreadyIn) {
-          const fresh = await hydrateCampaignById(campaign.id)
-          const merged = fresh ?? campaign
-          set((s) => ({
-            campaigns: upsertCampaign(s.campaigns, merged),
-            activeCampaignId: merged.id,
-          }))
-          return merged
-        }
-
-        const ins = await insertMemberOnRemote(campaign.id, nickname, role)
-        if (ins.status === 'fatal' && fromRemote) return null
-
-        if (ins.status === 'already_member') {
-          const fresh = await hydrateCampaignById(campaign.id)
-          const merged = fresh ?? campaign
-          set((s) => ({
-            campaigns: upsertCampaign(s.campaigns, merged),
-            activeCampaignId: merged.id,
-          }))
-          return merged
-        }
-
-        const member: CampaignMember = {
-          nickname,
-          role,
-          characterId: null,
-          joinedAt: Date.now(),
-        }
-        const next: Campaign = {
-          ...campaign,
-          members: [...campaign.members, member],
-        }
+        const next: Campaign = campaign.members.some((m) => m.nickname === nickname)
+          ? campaign
+          : {
+              ...campaign,
+              members: [...campaign.members, { nickname, role, characterId: null, joinedAt: Date.now() }],
+            }
         set((s) => ({
           campaigns: upsertCampaign(s.campaigns, next),
           activeCampaignId: next.id,

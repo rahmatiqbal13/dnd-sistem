@@ -32,6 +32,29 @@ function client(): SupabaseClient<Database> {
   return c
 }
 
+/**
+ * Make sure this browser has a Supabase session. Uses an anonymous sign-in, so
+ * players still only enter a nickname, but RLS gets a real auth.uid().
+ * Requires "Allow anonymous sign-ins" in the Supabase dashboard.
+ */
+let _session: Promise<void> | null = null
+
+export function ensureSession(): Promise<void> {
+  if (!_session) {
+    _session = (async () => {
+      const auth = client().auth
+      const { data } = await auth.getSession()
+      if (data.session) return
+      const { error } = await auth.signInAnonymously()
+      if (error) throw new Error(`Gagal masuk ke server: ${error.message}`)
+    })().catch((e) => {
+      _session = null
+      throw e
+    })
+  }
+  return _session
+}
+
 // ── Typed table helpers (throw only if called without Supabase env) ───────────
 
 export const db = {
@@ -43,4 +66,6 @@ export const db = {
   campaignSessions: () => client().from('campaign_sessions'),
   personalNotes: () => client().from('personal_notes'),
   diceRolls: () => client().from('dice_rolls'),
+  joinCampaign: (inviteCode: string, nickname: string) =>
+    client().rpc('join_campaign', { p_invite_code: inviteCode, p_nickname: nickname }),
 }

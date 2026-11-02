@@ -67,8 +67,13 @@ export function CampaignPage() {
       }
       toast.success(`Bergabung ke "${campaign.name}"!`)
       joinForm.reset()
-    } catch {
-      toast.error('Gagal bergabung. Periksa koneksi internet Anda.')
+    } catch (e) {
+      const tooMany = typeof e === 'object' && e !== null && 'code' in e && e.code === '54000'
+      toast.error(
+        tooMany
+          ? 'Terlalu banyak percobaan kode yang salah. Coba lagi dalam 10 menit.'
+          : 'Gagal bergabung. Periksa koneksi internet Anda.'
+      )
     }
   })
 

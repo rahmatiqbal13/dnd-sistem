@@ -1,12 +1,11 @@
-import { db, isSupabaseConfigured } from '@/lib/supabase'
-import type { Campaign, CampaignMember, CampaignNpc, CampaignSession, Role } from '@/types'
+import { db, ensureSession, isSupabaseConfigured } from '@/lib/supabase'
+import type { Campaign, CampaignMember, CampaignNpc, CampaignSession } from '@/types'
 
-/** 6 chars, avoids ambiguous 0/O and 1/I */
+/** 6 chars, avoids ambiguous 0/O and 1/I. 32 chars divide 256 evenly, so no modulo bias. */
 export function generateInviteCode(): string {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
-  let out = ''
-  for (let i = 0; i < 6; i++) out += chars[Math.floor(Math.random() * chars.length)]
-  return out
+  const bytes = crypto.getRandomValues(new Uint8Array(6))
+  return Array.from(bytes, (b) => chars[b % chars.length]).join('')
 }
 
 export function normalizeInviteCode(code: string): string {
@@ -81,6 +80,7 @@ function campaignFromRow(
 
 export async function hydrateCampaignById(campaignId: string): Promise<Campaign | null> {
   if (!isSupabaseConfigured) return null
+  await ensureSession()
   const { data: row, error: rowErr } = await db.campaigns().select('*').eq('id', campaignId).maybeSingle()
   if (rowErr || !row) return null
 
@@ -97,23 +97,23 @@ export async function hydrateCampaignById(campaignId: string): Promise<Campaign 
   return campaignFromRow(row, members, npcs, sessions)
 }
 
-export async function fetchCampaignByInviteCode(code: string): Promise<Campaign | null> {
-  if (!isSupabaseConfigured) return null
-  const normalized = normalizeInviteCode(code)
-  const { data: row, error } = await db
-    .campaigns()
-    .select('*')
-    .eq('invite_code', normalized)
-    .eq('is_active', true)
-    .maybeSingle()
-
-  if (error || !row) return null
-  return hydrateCampaignById(row.id)
+/**
+ * Join through the `join_campaign` RPC (the only way to become a member under RLS).
+ * Returns null for an unknown or inactive code.
+ */
+export async function joinCampaignOnRemote(code: string, nickname: string): Promise<Campaign | null> {
+  await ensureSession()
+  const { data: campaignId, error } = await db.joinCampaign(normalizeInviteCode(code), nickname)
+  if (error) throw error
+  if (!campaignId) return null
+  return hydrateCampaignById(campaignId)
 }
 
+/** Insert the campaign; the database adds the DM as a member and sets dm_id from the session. */
 export async function insertCampaignOnRemote(c: Campaign): Promise<void> {
   if (!isSupabaseConfigured) return
-  const { error: cErr } = await db.campaigns().insert({
+  await ensureSession()
+  const { error } = await db.campaigns().insert({
     id: c.id,
     name: c.name,
     description: c.description,
@@ -122,37 +122,5 @@ export async function insertCampaignOnRemote(c: Campaign): Promise<void> {
     is_active: c.isActive,
     session_notes: c.sessionNotes,
   })
-  if (cErr) throw cErr
-
-  const dm = c.members.find((m) => m.role === 'dm')
-  const dmNick = dm?.nickname ?? c.dmNickname
-  const { error: mErr } = await db.campaignMembers().insert({
-    campaign_id: c.id,
-    nickname: dmNick,
-    role: 'dm',
-  })
-  if (mErr) throw mErr
-}
-
-export type InsertMemberResult =
-  | { status: 'inserted' }
-  | { status: 'already_member' }
-  | { status: 'no_remote_campaign' }
-  | { status: 'fatal'; message: string }
-
-export async function insertMemberOnRemote(
-  campaignId: string,
-  nickname: string,
-  role: Role
-): Promise<InsertMemberResult> {
-  if (!isSupabaseConfigured) return { status: 'no_remote_campaign' }
-  const { error } = await db.campaignMembers().insert({
-    campaign_id: campaignId,
-    nickname,
-    role,
-  })
-  if (!error) return { status: 'inserted' }
-  if (error.code === '23505') return { status: 'already_member' }
-  if (error.code === '23503') return { status: 'no_remote_campaign' }
-  return { status: 'fatal', message: error.message }
+  if (error) throw error
 }
