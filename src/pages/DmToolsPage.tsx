@@ -1,6 +1,7 @@
 import { ShieldCheck, Heart, Star, Plus, Minus } from 'lucide-react'
 import { useState } from 'react'
 import { useCharacterStore } from '@/store/characterStore'
+import { usePartyCharacters } from '@/lib/live'
 import { useCampaignStore } from '@/store/campaignStore'
 import { useAppStore } from '@/store/appStore'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -83,19 +84,16 @@ function HpControl({ characterId, name, currentHp, maxHp }: {
 export function DmToolsPage() {
   const { role } = useAppStore()
   const { campaigns, activeCampaignId } = useCampaignStore()
-  const { characters } = useCharacterStore()
+  const updateCharacter = useCharacterStore((s) => s.updateCharacter)
   const [xpAmount, setXpAmount] = useState('300')
+  const campaign = campaigns.find((c) => c.id === activeCampaignId)
+  const party = usePartyCharacters(campaign)
 
   if (role !== 'dm') return <Navigate to="/dashboard" replace />
 
-  const campaign = campaigns.find((c) => c.id === activeCampaignId)
-  const partyChars = campaign
-    ? characters.filter(
-        (ch) =>
-          ch.campaignId === campaign.id ||
-          campaign.members.some((m) => m.characterId === ch.id)
-      )
-    : []
+  // Players' synced sheets are read-only here: only their owner's device writes them
+  const partyChars = party.characters
+  const localChars = partyChars.filter((ch) => !party.remoteIds.has(ch.id))
 
   return (
     <div className="max-w-2xl mx-auto px-4 py-6 space-y-5">
@@ -104,7 +102,7 @@ export function DmToolsPage() {
         <h1 className="font-cinzel text-2xl font-black text-forest-deep dark:text-gold-light">
           DM Tools
         </h1>
-        <span className="text-[9px] font-cinzel font-bold text-gold bg-gold/15 border border-gold/40 px-1.5 py-0.5 rounded ml-auto">
+        <span className="text-xs font-cinzel font-bold text-gold bg-gold/15 border border-gold/40 px-1.5 py-0.5 rounded ml-auto">
           DM ONLY
         </span>
       </div>
@@ -126,12 +124,23 @@ export function DmToolsPage() {
             partyChars.map((ch, i) => (
               <div key={ch.id}>
                 {i > 0 && <Separator className="mb-4" />}
-                <HpControl
-                  characterId={ch.id}
-                  name={ch.name}
-                  currentHp={ch.currentHp}
-                  maxHp={ch.maxHp}
-                />
+                {party.remoteIds.has(ch.id) ? (
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="font-medium">{ch.name}</span>
+                    <span className="font-mono tabular-nums">
+                      {ch.currentHp}/{ch.maxHp}
+                      {ch.tempHp > 0 ? ` +${ch.tempHp}` : ''}
+                      <span className="ml-2 text-xs text-forest-deep/70 dark:text-parchment/60">(dikelola pemain)</span>
+                    </span>
+                  </div>
+                ) : (
+                  <HpControl
+                    characterId={ch.id}
+                    name={ch.name}
+                    currentHp={ch.currentHp}
+                    maxHp={ch.maxHp}
+                  />
+                )}
               </div>
             ))
           )}
@@ -143,7 +152,7 @@ export function DmToolsPage() {
         <CardHeader className="pb-2">
           <CardTitle className="text-sm flex items-center gap-2">
             <Star className="h-4 w-4 text-gold" />
-            Beri XP ke Party
+            Beri XP ke tiap karakter
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
@@ -180,7 +189,12 @@ export function DmToolsPage() {
                 onClick={() => {
                   const xp = parseInt(xpAmount) || 0
                   if (xp <= 0) { toast.error('Masukkan jumlah XP yang valid'); return }
-                  toast.success(`${xp.toLocaleString()} XP diberikan ke ${partyChars.length} karakter`)
+                  localChars.forEach((ch) => updateCharacter(ch.id, { xp: (ch.xp ?? 0) + xp }))
+                  const others = partyChars.length - localChars.length
+                  toast.success(
+                    `${xp.toLocaleString()} XP diberikan ke ${localChars.length} karakter` +
+                      (others > 0 ? `. Minta ${others} pemain lain menambahkan XP di sheet mereka.` : '')
+                  )
                 }}
               >
                 <Star className="h-4 w-4" />

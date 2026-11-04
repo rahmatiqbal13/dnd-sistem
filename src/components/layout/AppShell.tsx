@@ -7,11 +7,19 @@ import { useAppStore } from '@/store/appStore'
 import { useEffect } from 'react'
 import { cn } from '@/lib/utils'
 import { applyTheme, getThemeById } from '@/lib/themes'
+import { startCharacterSync } from '@/lib/sync'
+import { useCampaignLive } from '@/lib/live'
+import { useCharacterStore } from '@/store/characterStore'
+import { useCampaignStore } from '@/store/campaignStore'
 
 export function AppShell() {
   const darkMode = useAppStore((s) => s.darkMode)
   const sidebarCollapsed = useAppStore((s) => s.sidebarCollapsed)
   const themeId = useAppStore((s) => s.themeId)
+  const activeCampaignId = useCampaignStore((s) => s.activeCampaignId)
+
+  useCampaignLive(activeCampaignId)
+  useEffect(() => startCharacterSync(useCharacterStore), [])
 
   useEffect(() => {
     document.documentElement.classList.toggle('dark', darkMode)

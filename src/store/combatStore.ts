@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+import { persist } from 'zustand/middleware'
 import type { Combatant, StatusEffect } from '@/types'
 
 interface CombatStore {
@@ -21,9 +22,11 @@ interface CombatStore {
   reset: () => void
   sortByInitiative: () => void
   updateNotes: (id: string, notes: string) => void
+  toggleConcentration: (id: string) => void
 }
 
-export const useCombatStore = create<CombatStore>()((set) => ({
+// Persisted so a page reload mid-fight doesn't lose the encounter
+export const useCombatStore = create<CombatStore>()(persist((set) => ({
   combatants: [],
   currentTurnIndex: 0,
   round: 1,
@@ -128,4 +131,9 @@ export const useCombatStore = create<CombatStore>()((set) => ({
     set((s) => ({
       combatants: s.combatants.map((c) => (c.id === id ? { ...c, notes } : c)),
     })),
-}))
+
+  toggleConcentration: (id) =>
+    set((s) => ({
+      combatants: s.combatants.map((c) => (c.id === id ? { ...c, concentrating: !c.concentrating } : c)),
+    })),
+}), { name: 'dnd-combat' }))

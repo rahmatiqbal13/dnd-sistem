@@ -83,6 +83,7 @@ export interface Database {
 
       characters: {
         Row: {
+          data: Json
           user_id: string | null
           id: string
           owner_id: string
@@ -115,6 +116,7 @@ export interface Database {
           updated_at: string
         }
         Insert: {
+          data?: Json
           user_id?: string | null
           id?: string
           owner_id?: string
@@ -147,6 +149,7 @@ export interface Database {
           updated_at?: string
         }
         Update: {
+          data?: Json
           user_id?: string | null
           id?: string
           owner_id?: string

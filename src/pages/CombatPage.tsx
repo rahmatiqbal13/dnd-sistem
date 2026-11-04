@@ -27,7 +27,12 @@ import { Badge } from '@/components/ui/badge'
 import { Progress } from '@/components/ui/progress'
 import { Card, CardContent } from '@/components/ui/card'
 import { hpColor, hpColorText, cn } from '@/lib/utils'
+import { COMPENDIUM_DATA } from '@/data/compendium'
+import { rollDie } from '@/lib/dice'
+import { concentrationDc, monsterCombatants } from '@/lib/combat'
 import type { StatusEffect } from '@/types'
+
+const MONSTERS = COMPENDIUM_DATA.filter((e) => e.category === 'monster')
 
 const STATUS_EFFECTS: StatusEffect[] = [
   'Blinded', 'Charmed', 'Deafened', 'Exhaustion', 'Frightened', 'Grappled',
@@ -60,8 +65,23 @@ export function CombatPage() {
     combatants, currentTurnIndex, round, isActive,
     addCombatant, removeCombatant, applyDamage, healHp,
     updateInitiative, nextTurn, prevTurn, startCombat, endCombat, reset,
-    addStatusEffect, removeStatusEffect, sortByInitiative,
+    addStatusEffect, removeStatusEffect, sortByInitiative, toggleConcentration,
   } = useCombatStore()
+  const updateCharacter = useCharacterStore((s) => s.updateCharacter)
+  const [monsterQuery, setMonsterQuery] = useState('')
+  const [monsterCount, setMonsterCount] = useState('1')
+  const monsterMatches = monsterQuery.trim().length < 2
+    ? []
+    : MONSTERS.filter((m) => m.name.toLowerCase().includes(monsterQuery.trim().toLowerCase())).slice(0, 6)
+
+  const handleAddMonster = (entryId: string) => {
+    const entry = MONSTERS.find((m) => m.id === entryId)
+    if (!entry) return
+    const count = Math.min(20, Math.max(1, parseInt(monsterCount) || 1))
+    monsterCombatants(entry, count, () => rollDie(20)).forEach(addCombatant)
+    toast.success(`${count}× ${entry.name} ditambahkan (initiative di-roll)`)
+    setMonsterQuery('')
+  }
 
   const isDM = role === 'dm'
   const [showAddForm, setShowAddForm] = useState(false)
@@ -81,7 +101,8 @@ export function CombatPage() {
     }
     addCombatant({
       name: char.name,
-      initiative: char.initiative,
+      // Roll initiative: d20 + the character's initiative bonus
+      initiative: rollDie(20) + char.initiative,
       maxHp: char.maxHp,
       currentHp: char.currentHp,
       tempHp: char.tempHp,
@@ -124,6 +145,16 @@ export function CombatPage() {
     if (action === 'damage') applyDamage(id, val)
     else healHp(id, val)
     setHpInputs((prev) => ({ ...prev, [id]: '' }))
+
+    const after = useCombatStore.getState().combatants.find((c) => c.id === id)
+    if (!after) return
+    // Keep a linked character sheet's HP in step with the tracker
+    if (after.characterId) {
+      updateCharacter(after.characterId, { currentHp: after.currentHp, tempHp: after.tempHp })
+    }
+    if (action === 'damage' && after.concentrating) {
+      toast.warning(`${after.name}: Concentration save DC ${concentrationDc(val)}`)
+    }
   }
 
   const currentCombatant = combatants[currentTurnIndex]
@@ -272,6 +303,45 @@ export function CombatPage() {
                   Add Combatant
                 </h3>
                 
+                <div className="space-y-2">
+                  <label className="text-xs text-forest-deep dark:text-parchment/80 block" htmlFor="monster-search">
+                    Dari kompendium (SRD)
+                  </label>
+                  <div className="flex gap-2">
+                    <Input
+                      id="monster-search"
+                      placeholder="Cari monster, mis. Goblin"
+                      value={monsterQuery}
+                      onChange={(e) => setMonsterQuery(e.target.value)}
+                      className="h-10 flex-1"
+                    />
+                    <Input
+                      type="number"
+                      min={1}
+                      max={20}
+                      aria-label="Jumlah"
+                      value={monsterCount}
+                      onChange={(e) => setMonsterCount(e.target.value)}
+                      className="h-10 w-16 text-center"
+                    />
+                  </div>
+                  {monsterMatches.length > 0 && (
+                    <div className="flex flex-col gap-1">
+                      {monsterMatches.map((m) => (
+                        <button
+                          key={m.id}
+                          type="button"
+                          onClick={() => handleAddMonster(m.id)}
+                          className="flex items-center justify-between min-h-11 px-3 rounded-lg border border-forest-deep/15 text-left text-sm hover:bg-forest-deep/5"
+                        >
+                          <span className="font-medium">{m.name}</span>
+                          <span className="text-xs text-forest-deep/70 dark:text-parchment/60">{m.subtitle}</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
                 <div className="grid grid-cols-2 gap-3">
                   <div className="col-span-2">
                     <label className="text-xs text-forest-light mb-1 block">Name</label>
@@ -474,13 +544,16 @@ export function CombatPage() {
                   </div>
 
                   {/* Status Effects */}
-                  {c.statusEffects.length > 0 && (
+                  {(c.statusEffects.length > 0 || c.concentrating) && (
                     <div className="flex flex-wrap gap-1 mt-3">
+                      {c.concentrating && (
+                        <Badge className="text-xs bg-forest-deep text-parchment border-0">Konsentrasi</Badge>
+                      )}
                       {c.statusEffects.map((effect) => (
                         <Badge 
                           key={effect} 
                           className={cn(
-                            'text-[9px] text-white border-0',
+                            'text-xs text-white border-0',
                             STATUS_COLORS[effect] || 'bg-gray-500'
                           )}
                         >
@@ -520,6 +593,16 @@ export function CombatPage() {
                         </div>
                       </div>
 
+                      <Button
+                        type="button"
+                        variant={c.concentrating ? 'default' : 'outline'}
+                        size="sm"
+                        aria-pressed={!!c.concentrating}
+                        onClick={() => toggleConcentration(c.id)}
+                      >
+                        {c.concentrating ? 'Sedang konsentrasi' : 'Tandai konsentrasi'}
+                      </Button>
+
                       {/* Status Effects */}
                       <div>
                         <label className="text-xs text-forest-light mb-2 block">Status Effects</label>
@@ -531,7 +614,7 @@ export function CombatPage() {
                                 key={effect}
                                 onClick={() => active ? removeStatusEffect(c.id, effect) : addStatusEffect(c.id, effect)}
                                 className={cn(
-                                  'px-2 py-1 rounded-lg text-[10px] font-medium transition-all',
+                                  'min-h-9 px-3 rounded-lg text-xs font-medium transition-all',
                                   active
                                     ? 'bg-amber-500 text-white shadow-md'
                                     : 'bg-forest-deep/10 text-forest-light hover:bg-forest-deep/20'

@@ -136,6 +136,13 @@ export interface Character {
   hitDice: HitDice
   deathSaves?: DeathSaves
   exhaustionLevel?: ExhaustionLevel
+  /** Active conditions (Exhaustion is tracked separately as a level) */
+  conditions?: StatusEffect[]
+  /** Name of the spell being concentrated on, or null */
+  concentration?: string | null
+  /** Used count per class resource id (see lib/classResources) */
+  resourcesUsed?: Record<string, number>
+  xp?: number
   abilityScores: AbilityScores
   maxHp: number
   currentHp: number
@@ -176,6 +183,8 @@ export interface CampaignMember {
   role: Role
   characterId: string | null
   joinedAt: number
+  /** Supabase auth user id; absent for local-only campaigns */
+  userId?: string | null
 }
 
 export interface CampaignNpc {
@@ -206,6 +215,8 @@ export interface Campaign {
   isActive: boolean
   sessionNotes: string
   createdAt: number
+  /** Supabase auth user id of the DM; absent for local-only campaigns */
+  dmId?: string | null
 }
 
 // ── Combat ─────────────────────────────────────────────────────────────────
@@ -229,6 +240,7 @@ export interface Combatant {
   statusEffects: StatusEffect[]
   notes: string
   characterId?: string
+  concentrating?: boolean
 }
 
 // ── Compendium ─────────────────────────────────────────────────────────────

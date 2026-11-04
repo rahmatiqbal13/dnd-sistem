@@ -6,6 +6,7 @@ import { useAppStore } from '@/store/appStore'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { cn } from '@/lib/utils'
+import { usePartyCharacters } from '@/lib/live'
 
 export function PartyPage() {
   const navigate = useNavigate()
@@ -14,13 +15,8 @@ export function PartyPage() {
   const { characters } = useCharacterStore()
 
   const campaign = campaigns.find((c) => c.id === activeCampaignId)
-  const partyCharacters = campaign
-    ? characters.filter(
-        (ch) =>
-          ch.campaignId === campaign.id ||
-          campaign.members.some((m) => m.characterId === ch.id)
-      )
-    : characters.filter((ch) => ch.ownerId === (nickname ?? ''))
+  const party = usePartyCharacters(campaign)
+  const partyCharacters = campaign ? party.characters : characters.filter((ch) => ch.ownerId === (nickname ?? ''))
 
   const hpPercent = (current: number, max: number) =>
     max > 0 ? Math.round((current / max) * 100) : 0
@@ -56,11 +52,12 @@ export function PartyPage() {
         <div className="space-y-3">
           {partyCharacters.map((ch) => {
             const pct = hpPercent(ch.currentHp, ch.maxHp)
+            const isOwn = !party.remoteIds.has(ch.id)
             return (
               <Card
                 key={ch.id}
-                className="cursor-pointer hover:border-forest-mid/50 transition-colors"
-                onClick={() => navigate(`/characters/${ch.id}`)}
+                className={cn('transition-colors', isOwn && 'cursor-pointer hover:border-forest-mid/50')}
+                onClick={isOwn ? () => navigate(`/characters/${ch.id}`) : undefined}
               >
                 <CardContent className="p-4">
                   <div className="flex items-start justify-between gap-3 mb-3">
@@ -93,9 +90,22 @@ export function PartyPage() {
                       style={{ width: `${pct}%` }}
                     />
                   </div>
-                  <p className="text-[10px] text-forest-light dark:text-parchment/30 mt-1">
-                    HP {pct}%
+                  <p className="text-xs text-forest-deep/70 dark:text-parchment/60 mt-1">
+                    HP {pct}%{ch.tempHp > 0 ? ` · +${ch.tempHp} temp` : ''}{!isOwn ? ' · karakter pemain lain' : ''}
                   </p>
+                  {(ch.concentration || (ch.conditions?.length ?? 0) > 0 || (ch.exhaustionLevel ?? 0) > 0) && (
+                    <div className="flex flex-wrap gap-1 mt-2">
+                      {ch.concentration && (
+                        <Badge className="text-xs bg-forest-deep text-parchment border-0">Konsentrasi: {ch.concentration}</Badge>
+                      )}
+                      {(ch.conditions ?? []).map((c) => (
+                        <Badge key={c} lang="en" className="text-xs bg-crimson text-white border-0">{c}</Badge>
+                      ))}
+                      {(ch.exhaustionLevel ?? 0) > 0 && (
+                        <Badge className="text-xs bg-crimson text-white border-0">Exhaustion {ch.exhaustionLevel}</Badge>
+                      )}
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             )

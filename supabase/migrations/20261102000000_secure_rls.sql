@@ -14,6 +14,8 @@
 --   re-create a campaign to get a fresh, secured invite code.
 -- =============================================================================
 
+-- Safe to re-run: every step checks or replaces what an earlier run created.
+
 -- ── Drop phase-1 policies ─────────────────────────────────────────────────────
 drop policy if exists "open_profiles"          on profiles;
 drop policy if exists "open_campaigns"         on campaigns;
@@ -35,8 +37,17 @@ alter table dice_rolls       add column if not exists user_id uuid references au
 alter table profiles         drop constraint if exists profiles_nickname_key;
 alter table campaign_members drop constraint if exists campaign_members_campaign_id_nickname_key;
 alter table personal_notes   drop constraint if exists personal_notes_nickname_campaign_id_key;
-alter table campaign_members add constraint campaign_members_campaign_id_user_id_key unique (campaign_id, user_id);
-alter table personal_notes   add constraint personal_notes_user_id_campaign_id_key   unique (user_id, campaign_id);
+-- Guarded so the migration can be re-run safely (e.g. after a partial run in the SQL Editor)
+do $$
+begin
+  if not exists (select 1 from pg_constraint where conname = 'campaign_members_campaign_id_user_id_key') then
+    alter table public.campaign_members add constraint campaign_members_campaign_id_user_id_key unique (campaign_id, user_id);
+  end if;
+  if not exists (select 1 from pg_constraint where conname = 'personal_notes_user_id_campaign_id_key') then
+    alter table public.personal_notes add constraint personal_notes_user_id_campaign_id_key unique (user_id, campaign_id);
+  end if;
+end;
+$$;
 
 -- Text owner columns are no longer required from the client.
 alter table characters alter column owner_id  set default '';
@@ -94,39 +105,47 @@ create trigger campaigns_add_dm_membership
   for each row execute function private.add_dm_membership();
 
 -- ── profiles: a user owns their own row (id = auth.uid()) ─────────────────────
+drop policy if exists "profiles_owner" on profiles;
 create policy "profiles_owner" on profiles
   for all to authenticated
   using      (id = (select auth.uid()))
   with check (id = (select auth.uid()));
 
 -- ── campaigns ─────────────────────────────────────────────────────────────────
+drop policy if exists "campaigns_member_read" on campaigns;
 create policy "campaigns_member_read" on campaigns
   for select to authenticated
   using (dm_id = (select auth.uid()) or private.is_campaign_member(id));
 
+drop policy if exists "campaigns_dm_insert" on campaigns;
 create policy "campaigns_dm_insert" on campaigns
   for insert to authenticated
   with check (dm_id = (select auth.uid()));
 
+drop policy if exists "campaigns_dm_update" on campaigns;
 create policy "campaigns_dm_update" on campaigns
   for update to authenticated
   using      (dm_id = (select auth.uid()))
   with check (dm_id = (select auth.uid()));
 
+drop policy if exists "campaigns_dm_delete" on campaigns;
 create policy "campaigns_dm_delete" on campaigns
   for delete to authenticated
   using (dm_id = (select auth.uid()));
 
 -- ── campaign_members: join only through join_campaign(); leave or be kicked ──
+drop policy if exists "campaign_members_read" on campaign_members;
 create policy "campaign_members_read" on campaign_members
   for select to authenticated
   using (private.is_campaign_member(campaign_id));
 
+drop policy if exists "campaign_members_update_own" on campaign_members;
 create policy "campaign_members_update_own" on campaign_members
   for update to authenticated
   using      (user_id = (select auth.uid()))
   with check (user_id = (select auth.uid()));
 
+drop policy if exists "campaign_members_leave_or_kick" on campaign_members;
 create policy "campaign_members_leave_or_kick" on campaign_members
   for delete to authenticated
   using (user_id = (select auth.uid()) or private.is_campaign_dm(campaign_id));
@@ -136,40 +155,48 @@ revoke update on campaign_members from authenticated;
 grant  update (character_id) on campaign_members to authenticated;
 
 -- ── campaign_npcs / campaign_sessions: members read, DM writes ────────────────
+drop policy if exists "campaign_npcs_member_read" on campaign_npcs;
 create policy "campaign_npcs_member_read" on campaign_npcs
   for select to authenticated
   using (private.is_campaign_member(campaign_id));
 
+drop policy if exists "campaign_npcs_dm_write" on campaign_npcs;
 create policy "campaign_npcs_dm_write" on campaign_npcs
   for all to authenticated
   using      (private.is_campaign_dm(campaign_id))
   with check (private.is_campaign_dm(campaign_id));
 
+drop policy if exists "campaign_sessions_member_read" on campaign_sessions;
 create policy "campaign_sessions_member_read" on campaign_sessions
   for select to authenticated
   using (private.is_campaign_member(campaign_id));
 
+drop policy if exists "campaign_sessions_dm_write" on campaign_sessions;
 create policy "campaign_sessions_dm_write" on campaign_sessions
   for all to authenticated
   using      (private.is_campaign_dm(campaign_id))
   with check (private.is_campaign_dm(campaign_id));
 
 -- ── characters: owner writes; campaign members can read ───────────────────────
+drop policy if exists "characters_owner" on characters;
 create policy "characters_owner" on characters
   for all to authenticated
   using      (user_id = (select auth.uid()))
   with check (user_id = (select auth.uid()));
 
+drop policy if exists "characters_campaign_read" on characters;
 create policy "characters_campaign_read" on characters
   for select to authenticated
   using (campaign_id is not null and private.is_campaign_member(campaign_id));
 
 -- ── personal_notes / dice_rolls: owner only ───────────────────────────────────
+drop policy if exists "personal_notes_owner" on personal_notes;
 create policy "personal_notes_owner" on personal_notes
   for all to authenticated
   using      (user_id = (select auth.uid()))
   with check (user_id = (select auth.uid()) and private.is_campaign_member(campaign_id));
 
+drop policy if exists "dice_rolls_owner" on dice_rolls;
 create policy "dice_rolls_owner" on dice_rolls
   for all to authenticated
   using      (user_id = (select auth.uid()))

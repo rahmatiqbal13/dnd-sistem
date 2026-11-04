@@ -23,7 +23,8 @@ import {
   abilityModifier, formatModifier, hpColor, hpColorText,
   ABILITY_LABELS, SKILLS_LIST,
 } from '@/lib/utils'
-import { resolveSpellSlots } from '@/lib/characterRules'
+import { applyDamage, resolveSpellSlots } from '@/lib/characterRules'
+import { TableTracker } from '@/components/character/TableTracker'
 import { getClass2024 } from '@/data/dnd2024/classes'
 import { getRace2024 } from '@/data/dnd2024/races'
 import { getBackground2024 } from '@/data/dnd2024/backgrounds'
@@ -340,10 +341,22 @@ export function CharacterSheetPage() {
   const applyHpChange = (sign: 1 | -1) => {
     const val = parseInt(hpDelta) || 0
     if (val <= 0) return
-    const delta = sign * val
-    const newHp = Math.min(character.maxHp, Math.max(0, character.currentHp + delta))
-    updateCharacter(id!, { currentHp: newHp })
-    toast.success(`HP ${sign > 0 ? '+' : ''}${delta} → ${newHp}/${character.maxHp}`)
+    if (sign > 0) {
+      const newHp = Math.min(character.maxHp, character.currentHp + val)
+      // Regaining any HP from 0 ends dying, so death saves reset
+      updateCharacter(id!, {
+        currentHp: newHp,
+        ...(character.currentHp === 0 ? { deathSaves: { successes: 0, failures: 0 } } : {}),
+      })
+      toast.success(`HP +${val} → ${newHp}/${character.maxHp}`)
+    } else {
+      const next = applyDamage(character.currentHp, character.tempHp, val)
+      updateCharacter(id!, next)
+      const conc = character.concentration
+        ? ` · Concentration save DC ${Math.min(30, Math.max(10, Math.floor(val / 2)))} (${character.concentration})`
+        : ''
+      toast.success(`Damage ${val} → ${next.currentHp}/${character.maxHp}${next.tempHp ? ` +${next.tempHp} temp` : ''}${conc}`)
+    }
     setHpDelta('')
   }
 
@@ -394,6 +407,19 @@ export function CharacterSheetPage() {
                     <Badge className="bg-gold/30 text-gold-light border-gold/50 text-xs">
                       <Sparkles className="h-3 w-3 mr-1" />
                       {character.originFeat}
+                    </Badge>
+                  )}
+                  {character.concentration && (
+                    <Badge className="bg-parchment text-forest-deep border-parchment text-xs">
+                      Konsentrasi: {character.concentration}
+                    </Badge>
+                  )}
+                  {(character.conditions ?? []).map((c) => (
+                    <Badge key={c} lang="en" className="bg-crimson text-white border-crimson text-xs">{c}</Badge>
+                  ))}
+                  {(character.exhaustionLevel ?? 0) > 0 && (
+                    <Badge className="bg-crimson text-white border-crimson text-xs">
+                      Exhaustion {character.exhaustionLevel}
                     </Badge>
                   )}
                 </div>
@@ -514,6 +540,7 @@ export function CharacterSheetPage() {
 
         {/* STATS TAB */}
         <TabsContent value="stats">
+          <TableTracker character={character} />
           <div className="grid grid-cols-3 gap-2">
             {ABILITIES.map((ab) => {
               const score = character.abilityScores[ab]
@@ -1063,7 +1090,7 @@ export function CharacterSheetPage() {
           </DialogHeader>
           <div className="space-y-4">
             <p className="text-sm text-forest-light">
-              A long rest restores all HP, regains half of your Hit Dice (minimum 1), reduces exhaustion by 1, and resets death saves.
+              A long rest restores all HP, regains all spent Hit Dice and expended spell slots, reduces exhaustion by 1, and resets death saves.
             </p>
             <div className="bg-forest-deep/5 p-3 rounded text-sm space-y-1">
               <p>✓ Full HP recovery</p>

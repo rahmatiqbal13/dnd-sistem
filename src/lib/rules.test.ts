@@ -98,3 +98,12 @@ describe('rests', () => {
     expect(get().spellSlots?.[1]?.used).toBe(4)
   })
 })
+
+describe('applyDamage', () => {
+  it('takes temporary HP first', async () => {
+    const { applyDamage } = await import('@/lib/characterRules')
+    expect(applyDamage(10, 5, 3)).toEqual({ currentHp: 10, tempHp: 2 })
+    expect(applyDamage(10, 5, 8)).toEqual({ currentHp: 7, tempHp: 0 })
+    expect(applyDamage(4, 0, 9)).toEqual({ currentHp: 0, tempHp: 0 })
+  })
+})

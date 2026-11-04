@@ -1,4 +1,5 @@
-import { Moon, Sun, Dice6, Shield, Wand2, LogOut, User, Palette, Check } from 'lucide-react'
+import { useRef } from 'react'
+import { Moon, Sun, Dice6, Shield, Wand2, LogOut, User, Palette, Check, Download, Upload } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
 import { useAppStore } from '@/store/appStore'
@@ -11,6 +12,7 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { getInitials, avatarColor } from '@/lib/utils'
 import { THEMES, applyTheme, getThemeById } from '@/lib/themes'
 import { cn } from '@/lib/utils'
+import { createBackup, parseBackup, restoreBackup } from '@/lib/backup'
 import type { Role } from '@/types'
 
 export function SettingsPage() {
@@ -30,6 +32,32 @@ export function SettingsPage() {
     setTheme(id)
     applyTheme(getThemeById(id).colors)
     toast.success(`Tema "${getThemeById(id).name}" diterapkan`)
+  }
+
+  const fileInput = useRef<HTMLInputElement>(null)
+
+  const handleExport = () => {
+    const backup = createBackup(localStorage)
+    const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `dnd-sistem-backup-${backup.exportedAt.slice(0, 10)}.json`
+    a.click()
+    URL.revokeObjectURL(url)
+    toast.success('Backup diunduh')
+  }
+
+  const handleImport = async (file: File) => {
+    try {
+      const backup = parseBackup(JSON.parse(await file.text()))
+      if (!confirm('Pulihkan backup? Data di perangkat ini akan diganti dengan isi backup.')) return
+      restoreBackup(localStorage, backup)
+      // Stores read localStorage on load, so reload to pick up the restored data
+      window.location.reload()
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Gagal membaca backup')
+    }
   }
 
   const handleLogout = () => {
@@ -187,6 +215,38 @@ export function SettingsPage() {
         </CardContent>
       </Card>
 
+      {/* Backup */}
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-sm">Backup Data</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <p className="text-sm text-forest-deep/80 dark:text-parchment/70">
+            Karakter, kampanye, catatan, dan log dadu tersimpan di browser ini saja. Unduh backup secara berkala agar data
+            tidak hilang saat cache dibersihkan atau ganti HP.
+          </p>
+          <div className="flex gap-2">
+            <Button variant="outline" className="flex-1" onClick={handleExport}>
+              <Download className="h-4 w-4" /> Unduh Backup
+            </Button>
+            <Button variant="outline" className="flex-1" onClick={() => fileInput.current?.click()}>
+              <Upload className="h-4 w-4" /> Pulihkan
+            </Button>
+            <input
+              ref={fileInput}
+              type="file"
+              accept="application/json,.json"
+              className="hidden"
+              onChange={(e) => {
+                const f = e.target.files?.[0]
+                if (f) void handleImport(f)
+                e.target.value = ''
+              }}
+            />
+          </div>
+        </CardContent>
+      </Card>
+
       {/* About */}
       <Card>
         <CardContent className="p-4 text-center">
@@ -213,7 +273,7 @@ export function SettingsPage() {
               <a href="https://creativecommons.org/licenses/by/4.0/legalcode" target="_blank" rel="noreferrer" className="underline">https://creativecommons.org/licenses/by/4.0/legalcode</a>.
             </p>
             <p>
-              Materi SRD telah diterjemahkan dan diringkas. Aplikasi ini kompatibel dengan 5E dan tidak berafiliasi
+              Antarmuka aplikasi ditulis dalam bahasa Indonesia; isi kompendium SRD masih berbahasa Inggris. Aplikasi ini kompatibel dengan 5E dan tidak berafiliasi
               dengan Wizards of the Coast.
             </p>
           </div>

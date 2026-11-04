@@ -1,4 +1,4 @@
-import { db, ensureSession, isSupabaseConfigured } from '@/lib/supabase'
+import { currentUserId, db, ensureSession, isSupabaseConfigured } from '@/lib/supabase'
 import type { Campaign, CampaignMember, CampaignNpc, CampaignSession } from '@/types'
 
 /** 6 chars, avoids ambiguous 0/O and 1/I. 32 chars divide 256 evenly, so no modulo bias. */
@@ -17,12 +17,14 @@ function memberFromRow(r: {
   role: 'dm' | 'player'
   character_id: string | null
   joined_at: string
+  user_id: string | null
 }): CampaignMember {
   return {
     nickname: r.nickname,
     role: r.role,
     characterId: r.character_id,
     joinedAt: new Date(r.joined_at).getTime(),
+    userId: r.user_id,
   }
 }
 
@@ -58,6 +60,7 @@ function campaignFromRow(
     is_active: boolean
     session_notes: string
     created_at: string
+    dm_id: string | null
   },
   members: CampaignMember[],
   npcs: CampaignNpc[],
@@ -75,6 +78,7 @@ function campaignFromRow(
     isActive: row.is_active,
     sessionNotes: row.session_notes,
     createdAt: new Date(row.created_at).getTime(),
+    dmId: row.dm_id,
   }
 }
 
@@ -123,4 +127,65 @@ export async function insertCampaignOnRemote(c: Campaign): Promise<void> {
     session_notes: c.sessionNotes,
   })
   if (error) throw error
+}
+
+// ── Writes (RLS decides who may do what; callers fire and forget) ────────────
+
+async function check(p: PromiseLike<{ error: { message: string } | null }>): Promise<void> {
+  const { error } = await p
+  if (error) throw error
+}
+
+export async function upsertNpcRemote(campaignId: string, npc: CampaignNpc): Promise<void> {
+  await ensureSession()
+  await check(db.campaignNpcs().upsert({ id: npc.id, campaign_id: campaignId, name: npc.name, role: npc.role, notes: npc.notes }))
+}
+
+export async function deleteNpcRemote(npcId: string): Promise<void> {
+  await ensureSession()
+  await check(db.campaignNpcs().delete().eq('id', npcId))
+}
+
+export async function upsertSessionRemote(campaignId: string, s: CampaignSession): Promise<void> {
+  await ensureSession()
+  await check(
+    db.campaignSessions().upsert({
+      id: s.id,
+      campaign_id: campaignId,
+      title: s.title,
+      date: s.date,
+      summary: s.summary,
+      xp_awarded: s.xpAwarded,
+    })
+  )
+}
+
+export async function deleteSessionRemote(sessionId: string): Promise<void> {
+  await ensureSession()
+  await check(db.campaignSessions().delete().eq('id', sessionId))
+}
+
+export async function updateCampaignRemote(
+  campaignId: string,
+  fields: { session_notes?: string; name?: string; description?: string; is_active?: boolean }
+): Promise<void> {
+  await ensureSession()
+  await check(db.campaigns().update(fields).eq('id', campaignId))
+}
+
+export async function deleteCampaignRemote(campaignId: string): Promise<void> {
+  await ensureSession()
+  await check(db.campaigns().delete().eq('id', campaignId))
+}
+
+/** Leave (own user id) or kick (DM, another member's user id). */
+export async function removeMemberRemote(campaignId: string, userId: string): Promise<void> {
+  await ensureSession()
+  await check(db.campaignMembers().delete().eq('campaign_id', campaignId).eq('user_id', userId))
+}
+
+export async function leaveCampaignRemote(campaignId: string): Promise<void> {
+  await ensureSession()
+  const uid = await currentUserId()
+  if (uid) await removeMemberRemote(campaignId, uid)
 }

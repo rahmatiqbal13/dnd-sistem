@@ -16,6 +16,9 @@ import { Textarea } from '@/components/ui/textarea'
 import { Switch } from '@/components/ui/switch'
 import { rollAbilityScore } from '@/lib/dice'
 import { isASILevel } from '@/lib/levelUp'
+import {
+  STANDARD_ARRAY, POINT_BUY_BUDGET, POINT_BUY_START, canRaisePointBuy, pointBuySpent,
+} from '@/lib/abilityGeneration'
 import { formatModifier, abilityModifier, ABILITY_LABELS, proficiencyBonus } from '@/lib/utils'
 import { BACKGROUNDS_2024, getBackground2024 } from '@/data/dnd2024/backgrounds'
 import { getClass2024 } from '@/data/dnd2024/classes'
@@ -82,6 +85,7 @@ export function CharacterBuilderPage() {
   const { nickname } = useAppStore()
   const addCharacter = useCharacterStore((s) => s.addCharacter)
 
+  const [abilityMethod, setAbilityMethod] = useState<'manual' | 'standard' | 'pointbuy' | 'roll'>('manual')
   const [baseScores, setBaseScores] = useState<AbilityScores>({
     str: 10, dex: 10, con: 10, int: 10, wis: 10, cha: 10,
   })
@@ -181,6 +185,20 @@ export function CharacterBuilderPage() {
     setEquipmentItems(equipment)
     setStartingGold(getDefaultGoldForClass(clsName))
   }, [clsName, bg])
+
+  const chooseMethod = (m: typeof abilityMethod) => {
+    setAbilityMethod(m)
+    if (m === 'standard') setBaseScores({ str: 15, dex: 14, con: 13, int: 12, wis: 10, cha: 8 })
+    if (m === 'pointbuy') setBaseScores(POINT_BUY_START)
+    if (m === 'roll') rollAll()
+  }
+
+  /** Standard Array: picking a value swaps it with the ability that currently has it. */
+  const assignStandard = (ab: Ability, value: number) =>
+    setBaseScores((s) => {
+      const other = (Object.keys(s) as Ability[]).find((k) => s[k] === value)
+      return other ? { ...s, [ab]: value, [other]: s[ab] } : { ...s, [ab]: value }
+    })
 
   const rollAll = () => {
     setBaseScores({
@@ -442,12 +460,41 @@ export function CharacterBuilderPage() {
           <CardHeader className="pb-2">
             <div className="flex items-center justify-between">
               <CardTitle className="text-sm">Ability (dasar, sebelum background)</CardTitle>
-              <Button type="button" size="sm" variant="outline" onClick={rollAll}>
-                <Dices className="h-3 w-3" />
-                <RefreshCw className="h-3 w-3" />
-                4d6
-              </Button>
+              {abilityMethod === 'roll' && (
+                <Button type="button" size="sm" variant="outline" onClick={rollAll} aria-label="Roll ulang 4d6">
+                  <Dices className="h-3 w-3" />
+                  <RefreshCw className="h-3 w-3" />
+                </Button>
+              )}
             </div>
+            <div className="grid grid-cols-4 gap-1 mt-2" role="radiogroup" aria-label="Metode ability score">
+              {([
+                ['manual', 'Manual'],
+                ['standard', 'Standard Array'],
+                ['pointbuy', 'Point Buy'],
+                ['roll', '4d6'],
+              ] as const).map(([m, label]) => (
+                <button
+                  key={m}
+                  type="button"
+                  role="radio"
+                  aria-checked={abilityMethod === m}
+                  onClick={() => chooseMethod(m)}
+                  className={`min-h-9 rounded-md border px-1 text-xs font-medium ${
+                    abilityMethod === m
+                      ? 'bg-forest-deep text-parchment border-forest-deep'
+                      : 'border-forest-deep/25 text-forest-deep dark:text-parchment dark:border-parchment/25'
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+            {abilityMethod === 'pointbuy' && (
+              <p className="text-xs mt-2 text-forest-deep dark:text-parchment/80">
+                Poin terpakai: <span className="font-mono font-bold">{pointBuySpent(baseScores)}/{POINT_BUY_BUDGET}</span> · skor 8–15
+              </p>
+            )}
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-3 gap-2">
@@ -459,6 +506,26 @@ export function CharacterBuilderPage() {
                     <p className="font-cinzel text-[10px] text-forest-light dark:text-parchment/50 uppercase tracking-wider mb-1">
                       {ABILITY_LABELS[ab]}
                     </p>
+                    {abilityMethod === 'standard' ? (
+                      <Select value={String(baseScores[ab])} onValueChange={(v) => assignStandard(ab, Number(v))}>
+                        <SelectTrigger className="font-mono text-lg font-bold justify-center"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          {STANDARD_ARRAY.map((v) => (
+                            <SelectItem key={v} value={String(v)}>{v}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    ) : abilityMethod === 'pointbuy' ? (
+                      <div className="flex items-center justify-between gap-1">
+                        <Button type="button" size="icon-sm" variant="outline" aria-label={`Kurangi ${ABILITY_LABELS[ab]}`}
+                          disabled={baseScores[ab] <= 8}
+                          onClick={() => setBaseScores((s) => ({ ...s, [ab]: s[ab] - 1 }))}>−</Button>
+                        <span className="font-mono text-lg font-bold tabular-nums">{baseScores[ab]}</span>
+                        <Button type="button" size="icon-sm" variant="outline" aria-label={`Tambah ${ABILITY_LABELS[ab]}`}
+                          disabled={!canRaisePointBuy(baseScores, ab)}
+                          onClick={() => setBaseScores((s) => ({ ...s, [ab]: s[ab] + 1 }))}>+</Button>
+                      </div>
+                    ) : (
                     <input
                       type="number"
                       min={1}
@@ -472,6 +539,7 @@ export function CharacterBuilderPage() {
                       }
                       className="w-full text-center font-mono text-lg font-bold border-2 border-forest-deep/20 dark:border-forest-mid/30 rounded-lg py-2 bg-transparent text-forest-deep dark:text-parchment focus:outline-none focus:border-forest-mid"
                     />
+                    )}
                     <p className={`font-mono text-xs font-bold mt-1 ${effMod >= 0 ? 'text-forest-mid dark:text-gold-light' : 'text-crimson'}`}>
                       {formatModifier(baseMod)}
                       {bg && effMod !== baseMod && (

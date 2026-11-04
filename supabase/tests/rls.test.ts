@@ -9,6 +9,7 @@ import { pgcrypto } from '@electric-sql/pglite/contrib/pgcrypto'
 const MIGRATIONS = path.join(__dirname, '..', 'migrations')
 
 const SUPABASE_STUB = `
+  create publication supabase_realtime;
   create role anon nologin;
   create role authenticated nologin;
   create schema auth;
@@ -52,6 +53,8 @@ beforeAll(async () => {
   // Grants run between migrations so the secure migration's column-level revokes still apply.
   await db.exec(readFileSync(path.join(MIGRATIONS, files[0]), 'utf8'))
   await db.exec(SUPABASE_GRANTS)
+  for (const f of files.slice(1)) await db.exec(readFileSync(path.join(MIGRATIONS, f), 'utf8'))
+  // Run again: migrations must be safe to re-run after a partial run in the SQL Editor
   for (const f of files.slice(1)) await db.exec(readFileSync(path.join(MIGRATIONS, f), 'utf8'))
   await db.exec(`insert into auth.users (id) values ('${DM}'), ('${PLAYER}'), ('${STRANGER}')`)
 
@@ -178,6 +181,40 @@ describe('members', () => {
   })
 })
 
+describe('character sync', () => {
+  it('owner upserts the full character; campaign members read it, strangers cannot', async () => {
+    // PLAYER was kicked above; rejoin, then link a character to the campaign
+    await as(PLAYER, () => db.query(`select join_campaign('ABC234', 'Pip')`))
+    const charId = '11111111-1111-1111-1111-111111111111'
+    const upsert = (name: string) =>
+      db.query(
+        `insert into characters (id, name, class, race, campaign_id, data) values ($1, $2, 'Rogue', 'Halfling', $3, $4)
+         on conflict (id) do update set name = excluded.name, data = excluded.data`,
+        [charId, name, campaignId, JSON.stringify({ conditions: ['Prone'] })]
+      )
+    await as(PLAYER, async () => {
+      await upsert('Pip')
+      await upsert('Pip v2')
+    })
+
+    const dmView = await as(DM, () => rows('select name, data from characters where campaign_id = $1', [campaignId]))
+    expect(dmView).toEqual([{ name: 'Pip v2', data: { conditions: ['Prone'] } }])
+    expect(await as(STRANGER, () => rows('select * from characters where id = $1', [charId]))).toHaveLength(0)
+
+    // The DM can read but not overwrite a player's sheet
+    await as(DM, () => db.query(`update characters set name = 'pwned' where id = $1`, [charId]))
+    const [c] = await rows('select name from characters where id = $1', [charId])
+    expect(c).toEqual({ name: 'Pip v2' })
+  })
+
+  it('publishes campaign tables for realtime', async () => {
+    const tables = (await rows(`select tablename from pg_publication_tables where pubname = 'supabase_realtime'`))
+      .map((r) => (r as { tablename: string }).tablename)
+      .sort()
+    expect(tables).toEqual(['campaign_members', 'campaign_npcs', 'campaign_sessions', 'campaigns', 'characters'])
+  })
+})
+
 describe('owner-only tables', () => {
   it("keeps characters, notes and dice rolls private to their owner", async () => {
     await as(PLAYER, async () => {
@@ -189,7 +226,7 @@ describe('owner-only tables', () => {
       expect(await rows('select * from dice_rolls')).toHaveLength(0)
       await db.query(`update characters set name = 'pwned'`)
     })
-    const [c] = await rows('select name, user_id from characters')
+    const [c] = await rows(`select name, user_id from characters where name in ('Pip', 'pwned')`)
     expect(c).toEqual({ name: 'Pip', user_id: PLAYER })
   })
 

@@ -76,6 +76,12 @@ export function computeArmorClass(preset: ArmorPreset, dexMod: number, shield: b
   return ac
 }
 
+/** Damage comes off temporary HP first; HP never drops below 0. */
+export function applyDamage(currentHp: number, tempHp: number, damage: number): { currentHp: number; tempHp: number } {
+  const absorbed = Math.min(tempHp, damage)
+  return { tempHp: tempHp - absorbed, currentHp: Math.max(0, currentHp - (damage - absorbed)) }
+}
+
 /** Mark every expended spell slot as available again. */
 export function restoreSpellSlots(slots: SpellSlotsState): SpellSlotsState {
   const out: SpellSlotsState = {}

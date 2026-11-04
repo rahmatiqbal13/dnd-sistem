@@ -4,6 +4,7 @@ import type { Character, AbilityScores, Spell, EquipmentItem, CharacterFeat, Sel
 import { getClass2024 } from '@/data/dnd2024/classes'
 import { proficiencyBonus } from '@/lib/utils'
 import { restoreSpellSlots } from '@/lib/characterRules'
+import { getClassResources, recoverResources } from '@/lib/classResources'
 
 const defaultAbilities: AbilityScores = { str: 10, dex: 10, con: 10, int: 10, wis: 10, cha: 10 }
 
@@ -213,6 +214,11 @@ export const useCharacterStore = create<CharacterStore>()(
                   ...c,
                   hitDice: { ...c.hitDice!, available: c.hitDice!.available - diceToRoll },
                   currentHp: Math.min(c.maxHp, c.currentHp + totalHealed),
+                  resourcesUsed: recoverResources(
+                    getClassResources(c.class, c.level, c.abilityScores),
+                    c.resourcesUsed ?? {},
+                    'short'
+                  ),
                   // Warlock Pact Magic slots return on a Short Rest
                   spellSlots:
                     c.spellSlots && getClass2024(c.class)?.casterType === 'pact'
@@ -252,6 +258,7 @@ export const useCharacterStore = create<CharacterStore>()(
               tempHp: 0,
               hitDice: { ...c.hitDice, available: newAvailableHitDice },
               spellSlots: newSpellSlots,
+              resourcesUsed: {},
               exhaustionLevel: newExhaustion,
               deathSaves: newDeathSaves,
             }

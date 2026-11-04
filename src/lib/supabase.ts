@@ -55,6 +55,12 @@ export function ensureSession(): Promise<void> {
   return _session
 }
 
+/** The signed-in Supabase user id (after ensureSession), or null. */
+export async function currentUserId(): Promise<string | null> {
+  const { data } = await client().auth.getSession()
+  return data.session?.user.id ?? null
+}
+
 // ── Typed table helpers (throw only if called without Supabase env) ───────────
 
 export const db = {
