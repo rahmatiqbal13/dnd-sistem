@@ -20,6 +20,9 @@ import {
 import { toast } from 'sonner'
 import { useCombatStore } from '@/store/combatStore'
 import { useCharacterStore } from '@/store/characterStore'
+import { useCampaignStore } from '@/store/campaignStore'
+import { usePartyCharacters } from '@/lib/live'
+import { PlayerCombatView } from '@/components/combat/PlayerCombatView'
 import { useAppStore } from '@/store/appStore'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -60,7 +63,14 @@ const STATUS_COLORS: Record<string, string> = {
 
 export function CombatPage() {
   const { role } = useAppStore()
-  const characters = useCharacterStore((s) => s.characters)
+  const localCharacters = useCharacterStore((s) => s.characters)
+  const activeCampaign = useCampaignStore((s) => s.campaigns.find((c) => c.id === s.activeCampaignId))
+  const party = usePartyCharacters(activeCampaign)
+  // Players' synced sheets from the active campaign, plus this device's own characters
+  const characters = [
+    ...party.characters,
+    ...localCharacters.filter((c) => !party.characters.some((p) => p.id === c.id)),
+  ]
   const {
     combatants, currentTurnIndex, round, isActive,
     addCombatant, removeCombatant, applyDamage, healHp,
@@ -158,6 +168,9 @@ export function CombatPage() {
   }
 
   const currentCombatant = combatants[currentTurnIndex]
+
+  // Players in a server-backed campaign follow the DM's tracker live, read-only
+  if (!isDM && activeCampaign?.dmId) return <PlayerCombatView campaign={activeCampaign} />
 
   return (
     <div className="container-responsive py-6 space-y-6">
@@ -278,20 +291,46 @@ export function CombatPage() {
                 
                 {characters.length > 0 && (
                   <div className="mt-3 pt-3 border-t border-orange-500/20">
-                    <p className="text-xs text-forest-light mb-2">Quick Add Characters:</p>
+                    <div className="flex items-center justify-between gap-2 mb-2">
+                      <p className="text-xs text-forest-deep dark:text-parchment/80">
+                        {activeCampaign ? `Party ${activeCampaign.name}:` : 'Karakter:'}
+                      </p>
+                      {party.characters.length > 0 && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() =>
+                            party.characters
+                              .filter((ch) => !useCombatStore.getState().combatants.some((c) => c.characterId === ch.id))
+                              .forEach((ch) => handleAddFromCharacter(ch.id))
+                          }
+                        >
+                          Tambah semua party
+                        </Button>
+                      )}
+                    </div>
                     <div className="flex flex-wrap gap-2">
                       {characters.map((char) => (
                         <button
                           key={char.id}
                           onClick={() => handleAddFromCharacter(char.id)}
                           disabled={combatants.some((c) => c.characterId === char.id)}
-                          className="px-3 py-1.5 rounded-lg border border-forest-deep/20 text-sm hover:bg-forest-deep/5 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+                          className="min-h-9 px-3 py-1.5 rounded-lg border border-forest-deep/20 text-sm hover:bg-forest-deep/5 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
                         >
                           + {char.name}
+                          {party.remoteIds.has(char.id) && (
+                            <span className="ml-1 text-xs text-forest-deep/70 dark:text-parchment/60">(pemain)</span>
+                          )}
                         </button>
                       ))}
                     </div>
                   </div>
+                )}
+                {party.unlinkedPlayers.length > 0 && (
+                  <p className="mt-3 text-xs rounded-md border border-gold/50 bg-gold/10 p-2 text-forest-deep dark:text-parchment">
+                    Belum memilih karakter: <strong>{party.unlinkedPlayers.map((m) => m.nickname).join(', ')}</strong>.
+                    Minta mereka buka Kampanye → "Karakter saya di kampanye ini".
+                  </p>
                 )}
               </CardContent>
             </Card>
@@ -463,9 +502,10 @@ export function CombatPage() {
                     
                     {/* Info */}
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
+                      <div className="flex flex-wrap items-center gap-x-2">
                         <p className={cn(
-                          'font-cinzel font-bold truncate',
+                          // Wrap instead of truncating: on phones "Goblin" was cut to "Gob…"
+                          'font-cinzel font-bold break-words',
                           c.isNpc ? 'text-crimson' : 'text-forest-deep dark:text-parchment',
                           isDead && 'line-through'
                         )}>
@@ -508,6 +548,8 @@ export function CombatPage() {
                         <Button
                           variant="ghost"
                           size="sm"
+                          aria-label={`${isExpanded ? 'Tutup' : 'Buka'} kontrol ${c.name}`}
+                          aria-expanded={isExpanded}
                           onClick={() => setExpandedId(isExpanded ? null : c.id)}
                         >
                           {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
@@ -515,6 +557,7 @@ export function CombatPage() {
                         <Button
                           variant="ghost"
                           size="sm"
+                          aria-label={`Hapus ${c.name} dari combat`}
                           onClick={() => removeCombatant(c.id)}
                           className="text-crimson hover:text-crimson hover:bg-crimson/10"
                         >

@@ -140,7 +140,8 @@ describe('join_campaign', () => {
       expect(a).toEqual({ id: campaignId })
       expect(b).toEqual({ id: campaignId })
       expect(await rows('select * from campaigns')).toHaveLength(1)
-      expect(await rows('select * from campaign_npcs')).toHaveLength(1)
+      // NPCs (with the DM's secret notes) stay hidden from players
+      expect(await rows('select * from campaign_npcs')).toHaveLength(0)
     })
     const members = await as(DM, () => rows('select user_id, role from campaign_members order by role'))
     expect(members).toEqual([
@@ -170,6 +171,7 @@ describe('members', () => {
     })
     const [npc] = await rows('select name from campaign_npcs')
     expect(npc).toEqual({ name: 'Ireena' })
+    expect(await as(DM, () => rows('select name from campaign_npcs'))).toEqual([{ name: 'Ireena' }])
   })
 
   it('cannot kick another member, but the DM can', async () => {
@@ -211,7 +213,35 @@ describe('character sync', () => {
     const tables = (await rows(`select tablename from pg_publication_tables where pubname = 'supabase_realtime'`))
       .map((r) => (r as { tablename: string }).tablename)
       .sort()
-    expect(tables).toEqual(['campaign_members', 'campaign_npcs', 'campaign_sessions', 'campaigns', 'characters'])
+    expect(tables).toEqual([
+      'campaign_combats', 'campaign_members', 'campaign_npcs', 'campaign_sessions', 'campaigns', 'characters',
+    ])
+  })
+})
+
+describe('shared combat', () => {
+  it('DM writes the combat row; members read it; non-members and players cannot write', async () => {
+    const state = JSON.stringify({ round: 2, combatants: [{ name: 'Goblin', condition: 'Terluka' }] })
+    await as(DM, () =>
+      db.query(
+        `insert into campaign_combats (campaign_id, state) values ($1, $2)
+         on conflict (campaign_id) do update set state = excluded.state`,
+        [campaignId, state]
+      )
+    )
+    const [row] = await as(PLAYER, () => rows('select state from campaign_combats where campaign_id = $1', [campaignId]))
+    expect(row).toEqual({ state: { round: 2, combatants: [{ name: 'Goblin', condition: 'Terluka' }] } })
+
+    await as(PLAYER, () => db.query(`update campaign_combats set state = '{}' where campaign_id = $1`, [campaignId]))
+    expect(await as(STRANGER, () => rows('select * from campaign_combats'))).toHaveLength(0)
+    await as(STRANGER, async () => {
+      await expect(
+        db.query(`insert into campaign_combats (campaign_id, state) values ($1, '{}')
+                  on conflict (campaign_id) do update set state = excluded.state`, [campaignId])
+      ).rejects.toThrow()
+    })
+    const [after] = await rows('select state from campaign_combats where campaign_id = $1', [campaignId])
+    expect((after as { state: { round: number } }).state.round).toBe(2)
   })
 })
 

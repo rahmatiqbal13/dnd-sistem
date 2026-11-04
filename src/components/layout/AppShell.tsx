@@ -9,6 +9,9 @@ import { cn } from '@/lib/utils'
 import { applyTheme, getThemeById } from '@/lib/themes'
 import { startCharacterSync } from '@/lib/sync'
 import { useCampaignLive } from '@/lib/live'
+import { startCombatBroadcast } from '@/lib/combatShare'
+import { currentUserId, ensureSession, isSupabaseConfigured } from '@/lib/supabase'
+import { useCombatStore } from '@/store/combatStore'
 import { useCharacterStore } from '@/store/characterStore'
 import { useCampaignStore } from '@/store/campaignStore'
 
@@ -20,6 +23,45 @@ export function AppShell() {
 
   useCampaignLive(activeCampaignId)
   useEffect(() => startCharacterSync(useCharacterStore), [])
+
+  // Publish the DM's tracker to the active campaign so players can follow along
+  useEffect(() => {
+    if (!isSupabaseConfigured) return
+    let uid: string | null = null
+    let stop = () => {}
+    let cancelled = false
+    void ensureSession()
+      .then(currentUserId)
+      .then((id) => {
+        if (cancelled) return
+        uid = id
+        stop = startCombatBroadcast(
+          {
+            getState: useCombatStore.getState,
+            subscribe: (fn) => {
+              const a = useCombatStore.subscribe(fn)
+              const b = useCampaignStore.subscribe((s, prev) => {
+                if (s.activeCampaignId !== prev.activeCampaignId) fn()
+              })
+              return () => {
+                a()
+                b()
+              }
+            },
+          },
+          () => {
+            const s = useCampaignStore.getState()
+            const c = s.campaigns.find((x) => x.id === s.activeCampaignId)
+            return c?.dmId && c.dmId === uid ? c.id : null
+          }
+        )
+      })
+      .catch(() => {})
+    return () => {
+      cancelled = true
+      stop()
+    }
+  }, [])
 
   useEffect(() => {
     document.documentElement.classList.toggle('dark', darkMode)

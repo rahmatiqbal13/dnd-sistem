@@ -72,6 +72,7 @@ export const db = {
   campaignSessions: () => client().from('campaign_sessions'),
   personalNotes: () => client().from('personal_notes'),
   diceRolls: () => client().from('dice_rolls'),
+  campaignCombats: () => client().from('campaign_combats'),
   joinCampaign: (inviteCode: string, nickname: string) =>
     client().rpc('join_campaign', { p_invite_code: inviteCode, p_nickname: nickname }),
 }

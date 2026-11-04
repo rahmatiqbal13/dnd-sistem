@@ -164,9 +164,14 @@ export function startCharacterSync(store: CharacterSource): () => void {
 
 // ── Party (other members' characters, read-only) ─────────────────────────────
 
-export async function fetchCampaignCharacters(campaignId: string): Promise<Character[]> {
+/** A synced character plus the Supabase user who owns it (to match it to a campaign member). */
+export type PartyCharacter = Character & { ownerUserId?: string | null }
+
+export async function fetchCampaignCharacters(campaignId: string): Promise<PartyCharacter[]> {
   await ensureSession()
-  const { data, error } = await db.characters().select('id, campaign_id, data').eq('campaign_id', campaignId)
+  const { data, error } = await db.characters().select('id, campaign_id, data, user_id').eq('campaign_id', campaignId)
   if (error) throw error
-  return (data ?? []).filter((r) => r.data && Object.keys(r.data).length > 0).map(characterFromRow)
+  return (data ?? [])
+    .filter((r) => r.data && Object.keys(r.data).length > 0)
+    .map((r) => ({ ...characterFromRow(r), ownerUserId: r.user_id }))
 }

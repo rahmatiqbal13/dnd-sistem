@@ -302,6 +302,24 @@ export interface Database {
         Relationships: []
       }
 
+      campaign_combats: {
+        Row: {
+          campaign_id: string
+          state: Json
+          updated_at: string
+        }
+        Insert: {
+          campaign_id: string
+          state?: Json
+          updated_at?: string
+        }
+        Update: {
+          campaign_id?: string
+          state?: Json
+          updated_at?: string
+        }
+        Relationships: []
+      }
       dice_rolls: {
         Row: {
           user_id: string | null

@@ -41,6 +41,13 @@ export function PartyPage() {
         )}
       </div>
 
+      {party.unlinkedPlayers.length > 0 && (
+        <p className="text-sm rounded-md border border-gold/50 bg-gold/10 p-3 text-forest-deep dark:text-parchment">
+          Belum memilih karakter: <strong>{party.unlinkedPlayers.map((m) => m.nickname).join(', ')}</strong>.
+          Minta mereka buka Kampanye → "Karakter saya di kampanye ini".
+        </p>
+      )}
+
       {partyCharacters.length === 0 ? (
         <div className="text-center py-16 space-y-2">
           <Users2 className="h-12 w-12 text-forest-deep/20 dark:text-parchment/20 mx-auto" />

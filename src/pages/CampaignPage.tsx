@@ -1,10 +1,12 @@
 import { useState } from 'react'
-import { Plus, Copy, UserMinus, Users, Map, BookOpen, CheckCircle, Skull, Trash2 } from 'lucide-react'
+import { Plus, Copy, UserMinus, Users, Map, BookOpen, CheckCircle, Skull, Trash2, RefreshCw } from 'lucide-react'
 import { toast } from 'sonner'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { useCampaignStore } from '@/store/campaignStore'
+import { useCharacterStore } from '@/store/characterStore'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { useAppStore } from '@/store/appStore'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -15,7 +17,9 @@ import { Textarea } from '@/components/ui/textarea'
 import { Separator } from '@/components/ui/separator'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
-import { getInitials, avatarColor, formatDate } from '@/lib/utils'
+import { getInitials, avatarColor, formatDate, cn } from '@/lib/utils'
+import { refreshCampaign } from '@/lib/live'
+import { isSupabaseConfigured } from '@/lib/supabase'
 
 const createSchema = z.object({
   name: z.string().min(2, 'Min 2 karakter').max(50),
@@ -26,10 +30,15 @@ const joinSchema = z.object({
   inviteCode: z.string().min(6, 'Kode invite 6 karakter').max(6),
 })
 
+const NONE = '__none__'
+
 export function CampaignPage() {
   const { nickname, role } = useAppStore()
   const { campaigns, activeCampaignId, createCampaign, joinCampaign, setActiveCampaign, kickMember, updateSessionNotes, leaveCampaign, addNpc, removeNpc } = useCampaignStore()
   const [activeTab, setActiveTab] = useState<string>('overview')
+  const [refreshing, setRefreshing] = useState(false)
+  const myCharacters = useCharacterStore((s) => s.characters)
+  const updateCharacter = useCharacterStore((s) => s.updateCharacter)
   const [npcForm, setNpcForm] = useState({ name: '', role: '', notes: '' })
   const [showAddNpc, setShowAddNpc] = useState(false)
 
@@ -102,8 +111,36 @@ export function CampaignPage() {
                 <Map className="h-4 w-4 text-gold" />
                 {activeCampaign.name}
               </CardTitle>
-              <Badge variant="default" className="text-[10px]">Aktif</Badge>
+              <div className="flex items-center gap-2">
+                {activeCampaign.dmId && (
+                  <Button
+                    size="icon-sm"
+                    variant="outline"
+                    aria-label="Muat ulang kampanye"
+                    disabled={refreshing}
+                    onClick={async () => {
+                      setRefreshing(true)
+                      try {
+                        await refreshCampaign(activeCampaign.id)
+                      } catch (e) {
+                        toast.error(`Gagal memuat ulang: ${e instanceof Error ? e.message : String(e)}`)
+                      } finally {
+                        setRefreshing(false)
+                      }
+                    }}
+                  >
+                    <RefreshCw className={cn('h-4 w-4', refreshing && 'animate-spin')} />
+                  </Button>
+                )}
+                <Badge variant="default" className="text-xs">Aktif</Badge>
+              </div>
             </div>
+            {isSupabaseConfigured && !activeCampaign.dmId && (
+              <p className="mt-2 text-xs rounded-md border border-crimson/40 bg-crimson/5 p-2 text-forest-deep dark:text-parchment">
+                Kampanye ini hanya tersimpan di perangkat ini (dibuat sebelum server aktif), jadi pemain tidak bisa
+                bergabung. Buat kampanye baru untuk mendapatkan kode invite yang tersinkron.
+              </p>
+            )}
             {activeCampaign.description && (
               <p className="text-xs text-forest-light dark:text-parchment/50 mt-1 font-crimson italic">
                 {activeCampaign.description}
@@ -153,6 +190,38 @@ export function CampaignPage() {
                     <p className="font-medium text-forest-deep dark:text-parchment text-xs">{formatDate(activeCampaign.createdAt)}</p>
                   </div>
                 </div>
+                {myCharacters.length > 0 ? (
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 p-3 rounded-lg border border-forest-deep/15">
+                    <Label htmlFor="my-character" className="text-sm">Karakter saya di kampanye ini</Label>
+                    <Select
+                      value={myCharacters.find((ch) => ch.campaignId === activeCampaign.id)?.id ?? NONE}
+                      onValueChange={(v) => {
+                        // One character per campaign: unlink the previous one, link the chosen one
+                        myCharacters
+                          .filter((ch) => ch.campaignId === activeCampaign.id && ch.id !== v)
+                          .forEach((ch) => updateCharacter(ch.id, { campaignId: null }))
+                        if (v !== NONE) {
+                          updateCharacter(v, { campaignId: activeCampaign.id })
+                          toast.success('Karakter dihubungkan ke kampanye')
+                        }
+                      }}
+                    >
+                      <SelectTrigger id="my-character" className="w-full sm:w-56"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value={NONE}>Belum dipilih</SelectItem>
+                        {myCharacters.map((ch) => (
+                          <SelectItem key={ch.id} value={ch.id}>{ch.name} (Lv {ch.level} {ch.class})</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                ) : (
+                  !isDM && (
+                    <p className="text-sm p-3 rounded-lg border border-gold/50 bg-gold/10 text-forest-deep dark:text-parchment">
+                      Kamu belum punya karakter. Buat karakter di tab Karakter, lalu pilih di sini agar DM bisa melihatnya.
+                    </p>
+                  )
+                )}
                 <div className="flex gap-2 pt-1">
                   {nickname !== activeCampaign.dmNickname && (
                     <Button
@@ -199,6 +268,7 @@ export function CampaignPage() {
                           size="icon-sm"
                           variant="ghost"
                           className="text-crimson/50 hover:text-crimson hover:bg-crimson/10"
+                          aria-label={`Kick ${member.nickname}`}
                           onClick={() => handleKick(activeCampaign.id, member.nickname)}
                         >
                           <UserMinus className="h-3.5 w-3.5" />
